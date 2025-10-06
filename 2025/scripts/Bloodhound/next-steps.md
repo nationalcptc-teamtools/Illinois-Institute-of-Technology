@@ -1,107 +1,197 @@
-# BloodHoundCE — Next Steps (concise & ordered)
-Working dir: ~/cptc/AD/BloodHoundCE
-Files: docker-compose.yml, rusthound-ce (installed to /usr/local/bin), BloodHound.py (cloned)
+# BloodHound CE — Setup & Usage Guide
+
+**Working Directory:** `~/cptc/AD/BloodHoundCE`
+
+**Required Files:**
+- `docker-compose.yml`
+- `rusthound-ce` (installed to `/usr/local/bin`)
+- `BloodHound.py` (cloned repository)
 
 ---
 
-1) move compose into working dir (if needed)
-   mv ~/Downloads/docker-compose.yml ~/cptc/AD/BloodHoundCE/docker-compose.yml
-   cd ~/cptc/AD/BloodHoundCE
+## 1. Initial Setup
 
-2) start stack
-   docker compose up -d
-   docker compose ps
+### Move Compose File to Working Directory
 
-3) check logs for initial admin password
-   # watch logs live
-   docker compose logs -f --tail 200
-   # quick search
-   docker compose logs --no-color --tail 500 bloodhound | grep -i -E "initial|password|admin" -n || true
+```bash
+mv ~/Downloads/docker-compose.yml ~/cptc/AD/BloodHoundCE/docker-compose.yml
+cd ~/cptc/AD/BloodHoundCE
+```
 
-4) if port(s) are in use (common: 7474, 7687, 8080)
-   # list processes using those ports
-   sudo ss -lntp | grep -E ':(7474|7687|8080|7475|7688)'
-   # or for a single port, e.g. 7474
-   sudo lsof -nP -iTCP:7474 -sTCP:LISTEN
+## 2. Start the Docker Stack
 
-   # inspect process and command
-   sudo ps -fp <PID>
-   tr '\0' ' ' </proc/<PID>/cmdline ; echo
+```bash
+docker compose up -d
+docker compose ps
+```
 
-   # kill if safe
-   sudo kill <PID>
-   sleep 2
-   sudo kill -9 <PID>   # only if needed
+## 3. Retrieve Initial Admin Password
 
-   # docker container mapping port?
-   docker ps --filter "publish=7474" --filter "publish=7687"
-   docker stop <container_id> && docker rm <container_id>
+Watch logs live:
+```bash
+docker compose logs -f --tail 200
+```
 
-   # or change docker-compose port binding (example)
-   # in docker-compose.yml:
-   #   ports:
-   #     - "127.0.0.1:7475:7474"
-   #     - "127.0.0.1:7688:7687"
-   # then:
-   docker compose down
-   docker compose up -d
+Quick search for password:
+```bash
+docker compose logs --no-color --tail 500 bloodhound | grep -i -E "initial|password|admin" -n || true
+```
 
-5) missed the initial password / want to recreate (destroys DB data)
-   docker compose down -v
-   docker compose up -d
-   docker compose logs -f --tail 200 bloodhound
+## 4. Troubleshoot Port Conflicts
 
-6) reset Neo4j password inside container (if Neo4j is containerized)
-   docker compose ps
-   docker exec -it <neo4j_container_name> /bin/bash -l
-   # inside:
-   bin/neo4j-admin set-initial-password 'MyNewSecurePassw0rd!'
-   exit
-   docker compose restart
+If ports are in use (common: 7474, 7687, 8080):
 
-7) collect AD data (RustHound-CE)
-   # run from a machine that can reach AD (replace values)
-   rusthound-ce -d <DOMAIN> -u '<USER>' -p '<PASSWORD>' -z
-   # produces rusthound_ce_YYYYMMDD_HHMMSS.zip (ready to upload)
+### List processes using those ports:
+```bash
+sudo ss -lntp | grep -E ':(7474|7687|8080|7475|7688)'
 
-8) collect AD data (BloodHound.py / bloodhound-ce-python)
-   # install on collector if needed:
-   pipx install git+https://github.com/dirkjanm/BloodHound.py@bloodhound-ce
-   # run:
-   bloodhound-ce-python -d <DOMAIN> -u <USER> -p '<PASSWORD>' --zip
+# Or for a single port, e.g., 7474:
+sudo lsof -nP -iTCP:7474 -sTCP:LISTEN
+```
 
-9) upload to BloodHound CE
-   # UI:
-   http://<kali_ip_or_localhost>:8080/ui/login
-   # Settings → Administration → Data Collection → File Ingest → UPLOAD FILES
+### Inspect process and command:
+```bash
+sudo ps -fp <PID>
+tr '\0' ' ' </proc/<PID>/cmdline ; echo
+```
 
-   # API (after creating API token in UI)
-   curl -H "Authorization: Bearer <TOKEN>" \
-        -F "file=@./rusthound_ce_YYYYMMDD_HHMMSS.zip" \
-        http://<host>:8080/api/v2/file-upload/
+### Kill process if safe:
+```bash
+sudo kill <PID>
+sleep 2
+sudo kill -9 <PID>   # only if needed
+```
 
-10) remote access options (choose one)
-   A) Recommended — SSH local port forwarding (secure)
-      From Windows (PowerShell / MobaXterm local shell):
-      ssh -L 8080:localhost:8080 user@<kali_ip>
-      # then open on Windows: http://localhost:8080
+### Check if Docker container is mapping the port:
+```bash
+docker ps --filter "publish=7474" --filter "publish=7687"
+docker stop <container_id> && docker rm <container_id>
+```
 
-      # If BloodHound uses a different host port, adjust accordingly:
-      ssh -L 8080:localhost:7475 user@<kali_ip>  # local:8080 -> kali:7475
+### Alternative: Change Docker Compose Port Binding
 
-   B) Bind to LAN (less secure; requires firewall control)
-      # in docker-compose.yml use:
-      - "8080:8080"
-      # open firewall if needed:
-      sudo ufw allow 8080/tcp
-      # then open in browser: http://<kali_ip>:8080
+Edit `docker-compose.yml`:
+```yaml
+ports:
+  - "127.0.0.1:7475:7474"
+  - "127.0.0.1:7688:7687"
+```
 
-11) quick troubleshooting
-   docker compose logs --no-color --tail 300
-   sudo ss -lntp
-   Test-NetConnection -ComputerName <kali_ip> -Port 8080   # from Windows PowerShell
+Then restart:
+```bash
+docker compose down
+docker compose up -d
+```
 
-12) security reminders
-   - Prefer SSH tunneling for access.
-   - Do not expose Neo4j Bolt (7687) or Neo4j HTTP (7474) to untrusted networks.
-   - Use strong admin passwords and rotate API tokens after use.
+## 5. Reset Admin Password (Destroys DB Data)
+
+If you missed the initial password or want to recreate:
+
+```bash
+docker compose down -v
+docker compose up -d
+docker compose logs -f --tail 200 bloodhound
+```
+
+## 6. Reset Neo4j Password Inside Container
+
+If Neo4j is containerized:
+
+```bash
+docker compose ps
+docker exec -it <neo4j_container_name> /bin/bash -l
+
+# Inside the container:
+bin/neo4j-admin set-initial-password 'MyNewSecurePassw0rd!'
+exit
+
+# Restart services:
+docker compose restart
+```
+
+## 7. Collect AD Data (RustHound-CE)
+
+Run from a machine that can reach Active Directory:
+
+```bash
+rusthound-ce -d <DOMAIN> -u '<USER>' -p '<PASSWORD>' -z
+```
+
+This produces `rusthound_ce_YYYYMMDD_HHMMSS.zip` ready to upload.
+
+## 8. Collect AD Data (BloodHound.py)
+
+### Install on collector if needed:
+```bash
+pipx install git+https://github.com/dirkjanm/BloodHound.py@bloodhound-ce
+```
+
+### Run collection:
+```bash
+bloodhound-ce-python -d <DOMAIN> -u <USER> -p '<PASSWORD>' --zip
+```
+
+## 9. Upload Data to BloodHound CE
+
+### Via Web UI:
+1. Navigate to: `http://<kali_ip_or_localhost>:8080/ui/login`
+2. Go to: **Settings → Administration → Data Collection → File Ingest → UPLOAD FILES**
+
+### Via API:
+After creating an API token in the UI:
+
+```bash
+curl -H "Authorization: Bearer <TOKEN>" \
+     -F "file=@./rusthound_ce_YYYYMMDD_HHMMSS.zip" \
+     http://<host>:8080/api/v2/file-upload/
+```
+
+## 10. Remote Access Options
+
+### Option A: SSH Local Port Forwarding (Recommended — Secure)
+
+From Windows (PowerShell / MobaXterm):
+```bash
+ssh -L 8080:localhost:8080 user@<kali_ip>
+```
+
+Then open in browser: `http://localhost:8080`
+
+If BloodHound uses a different host port:
+```bash
+ssh -L 8080:localhost:7475 user@<kali_ip>  # local:8080 -> kali:7475
+```
+
+### Option B: Bind to LAN (Less Secure)
+
+Edit `docker-compose.yml`:
+```yaml
+ports:
+  - "8080:8080"
+```
+
+Open firewall if needed:
+```bash
+sudo ufw allow 8080/tcp
+```
+
+Then open in browser: `http://<kali_ip>:8080`
+
+## 11. Quick Troubleshooting
+
+```bash
+# Check logs:
+docker compose logs --no-color --tail 300
+
+# List listening ports:
+sudo ss -lntp
+
+# Test connection from Windows PowerShell:
+Test-NetConnection -ComputerName <kali_ip> -Port 8080
+```
+
+## 12. Security Reminders
+
+- ✅ Prefer SSH tunneling for access
+- ⚠️ Do not expose Neo4j Bolt (7687) or Neo4j HTTP (7474) to untrusted networks
+- 🔐 Use strong admin passwords and rotate API tokens after use
