@@ -2,8 +2,6 @@
 set -euo pipefail
 
 # ─────────────────────────────────────────────────────────────
-# BloodHound CE universal setup (Kali + Debian/Ubuntu)
-# - Keeps your original flow; adds detection & robust fallbacks
 # - Installs Docker (official repo on Debian/Ubuntu; distro pkg on Kali)
 # - Downloads compose file, clones BloodHound.py, builds RustHound-CE
 # ─────────────────────────────────────────────────────────────
@@ -27,6 +25,21 @@ require_bin() {
 ID="$(. /etc/os-release; echo "${ID}")"
 CODENAME="$(. /etc/os-release; echo "${VERSION_CODENAME:-}")"
 log "Detected OS: ID=${ID}, CODENAME=${CODENAME:-unknown}"
+
+# ---------- Kali apt source hygiene (avoid invalid Docker upstream on Kali) ----------
+if [ "${ID}" = "kali" ]; then
+  # Disable any docker.com apt lists that point to non-existent kali suites
+  if grep -Rqs "download.docker.com" /etc/apt/sources.list /etc/apt/sources.list.d 2>/dev/null; then
+    warn "Disabling Docker upstream apt entries on Kali (not supported)"
+    for f in /etc/apt/sources.list.d/*docker*.list; do
+      [ -f "$f" ] && mv "$f" "$f.disabled" || true
+    done
+    # Also remove the path we might write later to avoid confusion
+    rm -f "${DOCKER_LIST}" 2>/dev/null || true
+    # Keyring removal is harmless if absent
+    rm -f "${DOCKER_KEYRING}" 2>/dev/null || true
+  fi
+fi
 
 # ---------- Base packages ----------
 log "Updating APT and installing base tools"
