@@ -2,91 +2,149 @@
 set -euo pipefail
 
 # ─────────────────────────────────────────────────────────────
-# BloodHound CE lightweight setup (same logic, slightly refined)
+# BloodHound CE universal setup (Kali + Debian/Ubuntu)
+# - Keeps your original flow; adds detection & robust fallbacks
+# - Installs Docker (official repo on Debian/Ubuntu; distro pkg on Kali)
+# - Downloads compose file, clones BloodHound.py, builds RustHound-CE
 # ─────────────────────────────────────────────────────────────
 
-# Config
-WORK_DIR="$HOME/BloodHoundCE"
+# ---------- Config ----------
+WORK_DIR="${HOME}/BloodHoundCE"
 DOCKER_KEYRING="/etc/apt/keyrings/docker.asc"
 DOCKER_LIST="/etc/apt/sources.list.d/docker.list"
 COMPOSE_URL="https://raw.githubusercontent.com/SpecterOps/BloodHound/refs/heads/main/examples/docker-compose/docker-compose.yml"
 
-echo "[*] Updating APT and installing gnome-terminal (required by Docker Desktop terminal integration)"
-sudo apt update -y
-sudo apt install -y gnome-terminal
+# ---------- Helpers ----------
+log()  { echo -e "\033[1;34m[*]\033[0m $*"; }
+warn() { echo -e "\033[1;33m[!]\033[0m $*"; }
+die()  { echo -e "\033[1;31m[x]\033[0m $*" >&2; exit 1; }
 
-echo "[*] Removing potentially conflicting packages (ignore errors if not installed)"
+require_bin() {
+  command -v "$1" >/dev/null 2>&1 || die "Missing required command: $1"
+}
+
+# ---------- Detect OS ----------
+ID="$(. /etc/os-release; echo "${ID}")"
+CODENAME="$(. /etc/os-release; echo "${VERSION_CODENAME:-}")"
+log "Detected OS: ID=${ID}, CODENAME=${CODENAME:-unknown}"
+
+# ---------- Base packages ----------
+log "Updating APT and installing base tools"
+apt-get update -y
+DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+  ca-certificates curl gnupg lsb-release git make gcc pkg-config
+
+# Install gnome-terminal if not present
+if ! dpkg -s gnome-terminal >/dev/null 2>&1; then
+  apt-get install -y gnome-terminal || true
+fi
+
+# ---------- Remove conflicting Docker packages ----------
+log "Removing potentially conflicting Docker packages"
 for pkg in docker.io docker-doc docker-compose podman-docker containerd runc; do
-  sudo apt-get remove -y "$pkg" || true
+  apt-get remove -y "$pkg" >/dev/null 2>&1 || true
 done
 
-echo "[*] Creating and entering work directory: $WORK_DIR"
-mkdir -p "$WORK_DIR"
-cd "$WORK_DIR"
+# ---------- Create work dir ----------
+log "Creating working directory: ${WORK_DIR}"
+mkdir -p "${WORK_DIR}"
+cd "${WORK_DIR}"
 
-echo "[*] Installing prerequisites for Docker repo"
-sudo apt-get update -y
-sudo apt-get install -y ca-certificates curl
+# ---------- Docker install (universal) ----------
+install_docker_deb_repo() {
+  # Official Docker repo for Debian/Ubuntu
+  install -m 0755 -d "$(dirname "${DOCKER_KEYRING}")"
+  curl -fsSL https://download.docker.com/linux/debian/gpg -o "${DOCKER_KEYRING}"
+  chmod a+r "${DOCKER_KEYRING}"
 
-echo "[*] Setting up Docker APT repository (Debian bookworm)"
-sudo install -m 0755 -d "$(dirname "$DOCKER_KEYRING")"
-sudo curl -fsSL https://download.docker.com/linux/debian/gpg -o "$DOCKER_KEYRING"
-sudo chmod a+r "$DOCKER_KEYRING"
+  # Detect codename if missing (Ubuntu sometimes)
+  if [ -z "${CODENAME}" ]; then
+    CODENAME="$(lsb_release -cs || true)"
+  fi
+  [ -z "${CODENAME}" ] && die "Could not determine distribution codename."
 
-echo "deb [arch=$(dpkg --print-architecture) signed-by=$DOCKER_KEYRING] https://download.docker.com/linux/debian bookworm stable" \
-  | sudo tee "$DOCKER_LIST" >/dev/null
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=${DOCKER_KEYRING}] \
+https://download.docker.com/linux/debian ${CODENAME} stable" \
+  > "${DOCKER_LIST}"
 
-sudo apt-get update -y
+  apt-get update -y
+  apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+}
 
-echo "[*] Installing Docker Engine + Buildx + Compose plugin"
-sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+install_docker_kali() {
+  # Docker Inc. does not publish a Kali suite; use distro packages
+  # (docker.io + docker-compose-plugin exist on Kali rolling)
+  apt-get update -y
+  apt-get install -y docker.io docker-compose-plugin containerd
+}
 
-echo "[*] Starting Docker service"
-sudo systemctl start docker
+log "Installing Docker for ${ID}"
+case "${ID}" in
+  debian|ubuntu)
+    if ! (install_docker_deb_repo); then
+      warn "Official Docker repo failed; falling back to distro packages."
+      apt-get install -y docker.io docker-compose-plugin containerd || die "Docker install failed."
+    fi
+    ;;
+  kali)
+    install_docker_kali
+    ;;
+  *)
+    warn "Unknown distro (${ID}). Trying official Docker repo path."
+    if ! (install_docker_deb_repo); then
+      warn "Repo attempt failed; falling back to distro packages."
+      apt-get install -y docker.io docker-compose-plugin containerd || die "Docker install failed."
+    fi
+    ;;
+esac
 
-echo "[*] Verifying Docker with hello-world"
-sudo docker run --rm hello-world
+# Enable & start Docker
+systemctl enable --now docker >/dev/null 2>&1 || service docker start || true
 
-echo "[*] Fetching BloodHound CE docker-compose file"
-wget -q "$COMPOSE_URL" -O docker-compose.yml
-echo "    -> Saved: $WORK_DIR/docker-compose.yml"
+# Verify Docker runs containers
+log "Verifying Docker with hello-world"
+docker run --rm hello-world >/dev/null || warn "Docker test failed; daemon may still be starting"
 
-echo "[*] Cloning BloodHound.py"
-if [ ! -d "$WORK_DIR/BloodHound.py" ]; then
+# ---------- BloodHound compose ----------
+log "Fetching BloodHound CE docker-compose.yml"
+curl -fsSL "${COMPOSE_URL}" -o docker-compose.yml || die "Failed to download docker-compose.yml"
+log "Saved: ${WORK_DIR}/docker-compose.yml"
+
+# ---------- BloodHound.py ----------
+log "Cloning BloodHound.py"
+if [ ! -d "${WORK_DIR}/BloodHound.py/.git" ]; then
   git clone https://github.com/dirkjanm/BloodHound.py.git
 else
-  echo "    -> BloodHound.py already exists, skipping clone"
+  log "BloodHound.py already present"
 fi
 
-echo "[*] Cloning and building RustHound-CE"
-if [ ! -d "$WORK_DIR/RustHound-CE" ]; then
+# ---------- RustHound-CE ----------
+log "Cloning RustHound-CE"
+if [ ! -d "${WORK_DIR}/RustHound-CE/.git" ]; then
   git clone https://github.com/g0h4n/RustHound-CE.git
 fi
-cd RustHound-CE
 
-# Install Rust (non-interactive) if missing
+log "Ensuring Rust toolchain is installed"
 if ! command -v cargo >/dev/null 2>&1; then
-  echo "[*] Installing Rust toolchain (rustup) non-interactively"
   curl -fsSL https://sh.rustup.rs | sh -s -- -y
-  # shellcheck source=/dev/null
-  [ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
-else
-  # shellcheck source=/dev/null
-  [ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
 fi
+# shellcheck source=/dev/null
+[ -f "${HOME}/.cargo/env" ] && . "${HOME}/.cargo/env"
 
-echo "[*] Building RustHound-CE (release)"
+log "Building RustHound-CE"
+cd "${WORK_DIR}/RustHound-CE"
 make release
+BIN_SRC="target/release/rusthound-ce"
+[ -f "${BIN_SRC}" ] || BIN_SRC="rusthound-ce"
+[ -f "${BIN_SRC}" ] || die "RustHound-CE build did not produce a binary."
 
-# Try the canonical target path first; fall back to project root if needed
-if [ -f "target/release/rusthound-ce" ]; then
-  sudo cp "target/release/rusthound-ce" /usr/bin/rusthound-ce
-elif [ -f "rusthound-ce" ]; then
-  sudo cp "rusthound-ce" /usr/bin/rusthound-ce
-else
-  echo "[!] Could not find built rusthound-ce binary" >&2
-  exit 1
-fi
+install -m 0755 "${BIN_SRC}" /usr/local/bin/rusthound-ce
+log "Installed: /usr/local/bin/rusthound-ce"
 
-echo "[✓] Setup complete."
-echo "Next: cd \"$WORK_DIR\" && docker compose up -d  (then ingest data with rusthound-ce or bloodhound-ce python)"
+# ---------- Done ----------
+log "Setup complete ✔"
+echo "Next:"
+echo "  cd ${WORK_DIR}"
+echo "  docker compose up -d"
+echo "  docker compose logs -f --tail 200   # find initial admin password"
+echo "  rusthound-ce -d <DOMAIN> -u '<USER>' -p '<PASS>' -z"
