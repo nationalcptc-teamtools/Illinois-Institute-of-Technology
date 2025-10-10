@@ -8,9 +8,7 @@ mkdir -p $HOME/test
 mkdir -p $HOME/tools
 cd $HOME/tools/
 
-# Sublime APT dependencies
-wget -qO - https://download.sublimetext.com/sublimehq-pub.gpg --no-check-certificate | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/sublimehq-archive.gpg > /dev/null
-echo "deb https://download.sublimetext.com/ apt/stable/" | sudo tee /etc/apt/sources.list.d/sublime-text.list
+# Removed Sublime Text to save space
 
 # Software upgrade
 #sudo hostnamectl set-hostname cyberhawks-linux
@@ -20,11 +18,11 @@ sudo dpkg-reconfigure debconf --frontend=noninteractive
 sudo apt -y update
 #sudo apt -y upgrade
 
-# Software (APT) packages - install what we can, continue on errors
-sudo apt -y install sublime-text testssl.sh ipmitool python3-venv nfs-common mitm6 git seclists enum4linux-ng pipx rsyslog || true
-sudo apt -y install bloodhound neo4j jq golang-go mingw-w64 crackmapexec smbmap ldap-utils || true
-sudo apt -y install feroxbuster ffuf gobuster sqlmap nikto || true
-sudo apt -y install proxychains4 chisel sshuttle wireguard-tools openvpn || true
+# Software (APT) packages - essential tools only
+sudo apt -y install python3-venv nfs-common mitm6 git enum4linux-ng pipx rsyslog || true
+sudo apt -y install bloodhound neo4j jq crackmapexec smbmap ldap-utils || true
+sudo apt -y install ffuf gobuster sqlmap || true
+sudo apt -y install proxychains4 sshuttle openvpn || true
 
 # Switch default Python to Python 3
 sudo update-alternatives --install /usr/bin/python python /usr/bin/python3 1
@@ -69,33 +67,19 @@ sudo chmod +x /usr/local/bin/rdp-sec-check.pl || true
 sudo wget https://raw.githubusercontent.com/shifty0g/ultimate-nmap-parser/master/ultimate-nmap-parser.sh -O /usr/local/bin/parse-nmap --no-check-certificate || true
 sudo chmod +x /usr/local/bin/parse-nmap || true
 
-# Ligolo-ng (pivoting tool)
-wget https://github.com/nicocha30/ligolo-ng/releases/latest/download/ligolo-ng_agent_0.6.2_linux_amd64.tar.gz --no-check-certificate || true
-tar -xzf ligolo-ng_agent_0.6.2_linux_amd64.tar.gz || true
-sudo mv agent /usr/local/bin/ligolo-agent || true
-sudo chmod +x /usr/local/bin/ligolo-agent || true
+# Ligolo-ng (pivoting tool) - proxy only
 wget https://github.com/nicocha30/ligolo-ng/releases/latest/download/ligolo-ng_proxy_0.6.2_linux_amd64.tar.gz --no-check-certificate || true
 tar -xzf ligolo-ng_proxy_0.6.2_linux_amd64.tar.gz || true
 sudo mv proxy /usr/local/bin/ligolo-proxy || true
 sudo chmod +x /usr/local/bin/ligolo-proxy || true
 rm -f ligolo-ng_*.tar.gz || true
 
-# Github packages - skip if already exists
+# Github packages - essential tools only
 git -c http.sslVerify=false clone https://github.com/hsaunders1904/pyautoenv || true
 chmod +x pyautoenv/pyautoenv.plugin.zsh || true
 git -c http.sslVerify=false clone https://github.com/dirkjanm/PKINITtools || true
-git -c http.sslVerify=false clone https://github.com/insidetrust/statistically-likely-usernames || true
 git -c http.sslVerify=false clone https://github.com/dirkjanm/krbrelayx || true
-git -c http.sslVerify=false clone https://github.com/zyn3rgy/LdapRelayScan || true
-git -c http.sslVerify=false clone https://github.com/FortyNorthSecurity/EyeWitness || true
 git -c http.sslVerify=false clone https://github.com/ShutdownRepo/pywhisker || true
-
-# Installs
-sudo $HOME/tools/EyeWitness/Python/setup/setup.sh || true
-sudo cpan install Encoding::BER || true
-
-# Install each tool in its own virtual env
-find $HOME/tools -type f -name 'requirements.txt' -execdir python3 -m venv .venv \; -execdir .venv/bin/pip install -r {} \; || true
 
 # Custom zshrc - FIXED: Better prompt with network interface detection
 cat >> $HOME/.zshrc << 'EOF'
