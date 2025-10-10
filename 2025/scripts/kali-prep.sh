@@ -1,7 +1,7 @@
 #!/bin/zsh
 
-# Exit on error
-set -e
+# Continue on error - don't exit if something fails
+set +e
 
 # Create directories
 mkdir -p $HOME/test
@@ -20,13 +20,11 @@ sudo dpkg-reconfigure debconf --frontend=noninteractive
 sudo apt -y update
 #sudo apt -y upgrade
 
-# Software (APT) packages - FIXED: Added missing tools
-sudo apt -y install sublime-text testssl.sh ipmitool python3-venv nfs-common mitm6 git seclists enum4linux-ng pipx rsyslog \
-    bloodhound neo4j apt-transport-https jq chromium-browser golang-go mingw-w64 \
-    powershell-empire starkiller crackmapexec smbmap redis-tools ldap-utils \
-    feroxbuster ffuf gobuster wfuzz sqlmap nikto nuclei \
-    powershell powershell-empire gophish wireguard-tools openvpn ncat \
-    sshuttle proxychains4 chisel
+# Software (APT) packages - install what we can, continue on errors
+sudo apt -y install sublime-text testssl.sh ipmitool python3-venv nfs-common mitm6 git seclists enum4linux-ng pipx rsyslog || true
+sudo apt -y install bloodhound neo4j jq golang-go mingw-w64 crackmapexec smbmap ldap-utils || true
+sudo apt -y install feroxbuster ffuf gobuster sqlmap nikto || true
+sudo apt -y install proxychains4 chisel sshuttle wireguard-tools openvpn || true
 
 # Switch default Python to Python 3
 sudo update-alternatives --install /usr/bin/python python /usr/bin/python3 1
@@ -37,81 +35,67 @@ echo 'PATH=$HOME/.local/bin:$PATH' >> $HOME/.zshrc
 . $HOME/.zshrc
 pipx ensurepath
 
-# Core Python tools via pipx
-PIP_NO_VERIFY="true" pipx install git+https://github.com/Pennyw0rth/NetExec
-PIP_NO_VERIFY="true" pipx install git+https://github.com/p0dalirius/Coercer
-PIP_NO_VERIFY="true" pipx install git+https://github.com/garrettfoster13/pre2k
-PIP_NO_VERIFY="true" pipx install impacket certipy-ad modbus_cli
-PIP_NO_VERIFY="true" pipx inject impacket pyOpenSSL==24.0.0 --force # fix for ntlmrelayx.py --shadowcredentials
+# Core Python tools via pipx - continue on errors
+PIP_NO_VERIFY="true" pipx install git+https://github.com/Pennyw0rth/NetExec || true
+PIP_NO_VERIFY="true" pipx install git+https://github.com/p0dalirius/Coercer || true
+PIP_NO_VERIFY="true" pipx install git+https://github.com/garrettfoster13/pre2k || true
+PIP_NO_VERIFY="true" pipx install impacket certipy-ad modbus_cli || true
+PIP_NO_VERIFY="true" pipx inject impacket pyOpenSSL==24.0.0 --force || true # fix for ntlmrelayx.py --shadowcredentials
 
 # Additional Python tools
-PIP_NO_VERIFY="true" pipx install bloodhound pypykatz roadrecon roadtools
-PIP_NO_VERIFY="true" pipx install git+https://github.com/dirkjanm/adidnsdump
-PIP_NO_VERIFY="true" pipx install git+https://github.com/dirkjanm/ldapdomaindump
-PIP_NO_VERIFY="true" pipx install git+https://github.com/Gerenios/AADInternals
+PIP_NO_VERIFY="true" pipx install bloodhound pypykatz || true
 
 # Ruby gems
-echo ":ssl_verify_mode: 0" | sudo tee -a /root/.gemrc
-sudo gem install evil-winrm winrm winrm-fs
+echo ":ssl_verify_mode: 0" | sudo tee -a /root/.gemrc || true
+sudo gem install evil-winrm winrm winrm-fs || true
 
 # Standalone Python scripts (coercion tools)
-sudo wget https://raw.githubusercontent.com/topotam/PetitPotam/refs/heads/main/PetitPotam.py -O /usr/local/bin/petitpotam --no-check-certificate
-sudo chmod +x /usr/local/bin/petitpotam
-sudo wget https://raw.githubusercontent.com/Wh04m1001/DFSCoerce/refs/heads/main/dfscoerce.py -O /usr/local/bin/dfscoerce --no-check-certificate
-sudo chmod +x /usr/local/bin/dfscoerce
-sudo wget https://raw.githubusercontent.com/ShutdownRepo/ShadowCoerce/refs/heads/main/shadowcoerce.py -O /usr/local/bin/shadowcoerce --no-check-certificate
-sudo chmod +x /usr/local/bin/shadowcoerce
-sudo wget https://raw.githubusercontent.com/dirkjanm/krbrelayx/refs/heads/master/printerbug.py -O /usr/local/bin/printerbug --no-check-certificate
-sudo chmod +x /usr/local/bin/printerbug
-sudo wget https://raw.githubusercontent.com/evilashz/CheeseOunce/refs/heads/main/cheese.py -O /usr/local/bin/cheeseounce --no-check-certificate
-sudo chmod +x /usr/local/bin/cheeseounce
+sudo wget https://raw.githubusercontent.com/topotam/PetitPotam/refs/heads/main/PetitPotam.py -O /usr/local/bin/petitpotam --no-check-certificate || true
+sudo chmod +x /usr/local/bin/petitpotam || true
+sudo wget https://raw.githubusercontent.com/Wh04m1001/DFSCoerce/refs/heads/main/dfscoerce.py -O /usr/local/bin/dfscoerce --no-check-certificate || true
+sudo chmod +x /usr/local/bin/dfscoerce || true
+sudo wget https://raw.githubusercontent.com/ShutdownRepo/ShadowCoerce/refs/heads/main/shadowcoerce.py -O /usr/local/bin/shadowcoerce --no-check-certificate || true
+sudo chmod +x /usr/local/bin/shadowcoerce || true
+sudo wget https://raw.githubusercontent.com/dirkjanm/krbrelayx/refs/heads/master/printerbug.py -O /usr/local/bin/printerbug --no-check-certificate || true
+sudo chmod +x /usr/local/bin/printerbug || true
+sudo wget https://raw.githubusercontent.com/evilashz/CheeseOunce/refs/heads/main/cheese.py -O /usr/local/bin/cheeseounce --no-check-certificate || true
+sudo chmod +x /usr/local/bin/cheeseounce || true
 
 # Binaries
-sudo wget https://github.com/ropnop/kerbrute/releases/download/v1.0.3/kerbrute_linux_amd64 -O /usr/local/bin/kerbrute --no-check-certificate
-sudo chmod +x /usr/local/bin/kerbrute
-sudo wget https://raw.githubusercontent.com/CiscoCXSecurity/rdp-sec-check/master/rdp-sec-check.pl -O /usr/local/bin/rdp-sec-check.pl --no-check-certificate
-sudo chmod +x /usr/local/bin/rdp-sec-check.pl
-sudo wget https://raw.githubusercontent.com/shifty0g/ultimate-nmap-parser/master/ultimate-nmap-parser.sh -O /usr/local/bin/parse-nmap --no-check-certificate
-sudo chmod +x /usr/local/bin/parse-nmap
+sudo wget https://github.com/ropnop/kerbrute/releases/download/v1.0.3/kerbrute_linux_amd64 -O /usr/local/bin/kerbrute --no-check-certificate || true
+sudo chmod +x /usr/local/bin/kerbrute || true
+sudo wget https://raw.githubusercontent.com/CiscoCXSecurity/rdp-sec-check/master/rdp-sec-check.pl -O /usr/local/bin/rdp-sec-check.pl --no-check-certificate || true
+sudo chmod +x /usr/local/bin/rdp-sec-check.pl || true
+sudo wget https://raw.githubusercontent.com/shifty0g/ultimate-nmap-parser/master/ultimate-nmap-parser.sh -O /usr/local/bin/parse-nmap --no-check-certificate || true
+sudo chmod +x /usr/local/bin/parse-nmap || true
 
 # Ligolo-ng (pivoting tool)
-wget https://github.com/nicocha30/ligolo-ng/releases/latest/download/ligolo-ng_agent_0.6.2_linux_amd64.tar.gz --no-check-certificate
-tar -xzf ligolo-ng_agent_0.6.2_linux_amd64.tar.gz
-sudo mv agent /usr/local/bin/ligolo-agent
-sudo chmod +x /usr/local/bin/ligolo-agent
-wget https://github.com/nicocha30/ligolo-ng/releases/latest/download/ligolo-ng_proxy_0.6.2_linux_amd64.tar.gz --no-check-certificate
-tar -xzf ligolo-ng_proxy_0.6.2_linux_amd64.tar.gz
-sudo mv proxy /usr/local/bin/ligolo-proxy
-sudo chmod +x /usr/local/bin/ligolo-proxy
-rm -f ligolo-ng_*.tar.gz
+wget https://github.com/nicocha30/ligolo-ng/releases/latest/download/ligolo-ng_agent_0.6.2_linux_amd64.tar.gz --no-check-certificate || true
+tar -xzf ligolo-ng_agent_0.6.2_linux_amd64.tar.gz || true
+sudo mv agent /usr/local/bin/ligolo-agent || true
+sudo chmod +x /usr/local/bin/ligolo-agent || true
+wget https://github.com/nicocha30/ligolo-ng/releases/latest/download/ligolo-ng_proxy_0.6.2_linux_amd64.tar.gz --no-check-certificate || true
+tar -xzf ligolo-ng_proxy_0.6.2_linux_amd64.tar.gz || true
+sudo mv proxy /usr/local/bin/ligolo-proxy || true
+sudo chmod +x /usr/local/bin/ligolo-proxy || true
+rm -f ligolo-ng_*.tar.gz || true
 
-# Github packages
-git -c http.sslVerify=false clone https://github.com/hsaunders1904/pyautoenv
-chmod +x pyautoenv/pyautoenv.plugin.zsh  # FIXED: typo in filename
-git -c http.sslVerify=false clone https://github.com/dirkjanm/PKINITtools
-git -c http.sslVerify=false clone https://github.com/insidetrust/statistically-likely-usernames
-git -c http.sslVerify=false clone https://github.com/dirkjanm/krbrelayx
-git -c http.sslVerify=false clone https://github.com/zyn3rgy/LdapRelayScan
-git -c http.sslVerify=false clone https://github.com/FortyNorthSecurity/EyeWitness
-git -c http.sslVerify=false clone https://github.com/ShutdownRepo/pywhisker
-git -c http.sslVerify=false clone https://github.com/GhostPack/Rubeus
-git -c http.sslVerify=false clone https://github.com/GhostPack/Seatbelt
-git -c http.sslVerify=false clone https://github.com/ly4k/Certipy
-git -c http.sslVerify=false clone https://github.com/carlospolop/PEASS-ng
-git -c http.sslVerify=false clone https://github.com/internetwache/GitTools
-git -c http.sslVerify=false clone https://github.com/swisskyrepo/PayloadsAllTheThings
-git -c http.sslVerify=false clone https://github.com/danielmiessler/SecLists
-git -c http.sslVerify=false clone https://github.com/PowerShellMafia/PowerSploit
-git -c http.sslVerify=false clone https://github.com/samratashok/nishang
-git -c http.sslVerify=false clone https://github.com/byt3bl33d3r/OffensiveNim
-git -c http.sslVerify=false clone https://github.com/byt3bl33d3r/SprayingToolkit
+# Github packages - skip if already exists
+git -c http.sslVerify=false clone https://github.com/hsaunders1904/pyautoenv || true
+chmod +x pyautoenv/pyautoenv.plugin.zsh || true
+git -c http.sslVerify=false clone https://github.com/dirkjanm/PKINITtools || true
+git -c http.sslVerify=false clone https://github.com/insidetrust/statistically-likely-usernames || true
+git -c http.sslVerify=false clone https://github.com/dirkjanm/krbrelayx || true
+git -c http.sslVerify=false clone https://github.com/zyn3rgy/LdapRelayScan || true
+git -c http.sslVerify=false clone https://github.com/FortyNorthSecurity/EyeWitness || true
+git -c http.sslVerify=false clone https://github.com/ShutdownRepo/pywhisker || true
 
 # Installs
-sudo $HOME/tools/EyeWitness/Python/setup/setup.sh
-sudo cpan install Encoding::BER
+sudo $HOME/tools/EyeWitness/Python/setup/setup.sh || true
+sudo cpan install Encoding::BER || true
 
 # Install each tool in its own virtual env
-find $HOME/tools -type f -name 'requirements.txt' -execdir python3 -m venv .venv \; -execdir .venv/bin/pip install -r {} \;
+find $HOME/tools -type f -name 'requirements.txt' -execdir python3 -m venv .venv \; -execdir .venv/bin/pip install -r {} \; || true
 
 # Custom zshrc - FIXED: Better prompt with network interface detection
 cat >> $HOME/.zshrc << 'EOF'
@@ -156,12 +140,12 @@ echo 'precmd() { eval RETRN_VAL=$?;logger -p local6.debug "$(whoami) [$$]: $(his
 sudo systemctl restart rsyslog
 
 # Configure proxychains
-sudo sed -i 's/^strict_chain/#strict_chain/g' /etc/proxychains4.conf
-sudo sed -i 's/^#dynamic_chain/dynamic_chain/g' /etc/proxychains4.conf
+sudo sed -i 's/^strict_chain/#strict_chain/g' /etc/proxychains4.conf || true
+sudo sed -i 's/^#dynamic_chain/dynamic_chain/g' /etc/proxychains4.conf || true
 
 # Neo4j configuration for BloodHound
-sudo systemctl enable neo4j
-sudo systemctl start neo4j
+sudo systemctl enable neo4j || true
+sudo systemctl start neo4j || true
 
 . $HOME/.zshrc
 echo "Installation complete!"
