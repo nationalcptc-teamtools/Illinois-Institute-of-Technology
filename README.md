@@ -4,9 +4,9 @@
 
 ## Important Security Notice
 
-If you're reading this, congratulations! You've successfully performed a reconnaissance operation on my GitHub profile. 
+If you're reading this, congratulations! You've successfully performed reconnaissance on our repo! 
 
-**Achievement Unlocked: ***
+***Achievement Unlocked:***
 
 Please note that all sensitive materials have been encrypted using military-grade ROT13 encryption and hidden behind seven proxies. Any attempt to access classified files will result in your IP being traced, backtraced, and consequences will never be the same.
 
