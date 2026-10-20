@@ -1,0 +1,169 @@
+# CPTC 2026
+
+Tooling and reporting material for the **2026–2027 Collegiate Penetration Testing Competition (CPTC12)**. The client this season is **Butters Family Farm**.
+
+```
+2026/
+├── README.md                 # this file
+├── docs/
+│   ├── service-audit.md      # full usage guide for service-audit.sh
+│   └── findings.md           # reference for every SysReptor finding template
+├── scripts/
+│   ├── kali-prep.sh          # one-shot Kali attack-box setup
+│   ├── windows-prep.ps1      # one-shot Windows attack-box setup
+│   └── service-audit.sh      # default-credential / weak-config sweep driven by Nmap output
+└── templates/
+    ├── design-CPTC12-2026-2027-Butters-Family-Farms.tar.gz   # SysReptor report design
+    └── template-*.tar.gz                                     # 141 SysReptor finding templates
+```
+
+## Contents
+
+- [Scripts](#scripts)
+  - [kali-prep.sh](#kali-prepsh)
+  - [windows-prep.ps1](#windows-prepps1)
+  - [service-audit.sh](#service-auditsh)
+- [SysReptor templates](#sysreptor-templates)
+  - [Report design](#report-design)
+  - [Finding templates](#finding-templates)
+  - [Importing into SysReptor](#importing-into-sysreptor)
+- [Typical workflow](#typical-workflow)
+
+---
+
+## Scripts
+
+### kali-prep.sh
+
+Sets up a fresh Kali VM as the team attack box in one run. It is a **zsh** script, uses `sudo` itself, and keeps going when an individual step fails.
+
+```bash
+chmod +x kali-prep.sh
+```
+
+```bash
+./kali-prep.sh
+```
+
+What it does:
+
+| Area | Details |
+|---|---|
+| System | Adds a validated `/etc/sudoers.d/99-nopasswd-sudo` drop-in (passwordless sudo for the `sudo` group). Switches the APT mirror to `mirrors.ocf.berkeley.edu`. Sets `python` to Python 3. |
+| APT packages | `nfs-common`, `mitm6`, `enum4linux-ng`, `bloodhound`, `neo4j`, `crackmapexec`, `smbmap`, `ldap-utils`, `ffuf`, `gobuster`, `sqlmap`, `proxychains4`, `sshuttle`, `openvpn`, `krb5-user`, `freerdp3-x11`, `testssl.sh`, `ipmitool`, `seclists`, `sublime-text`, `magic-wormhole`, and others |
+| pipx | NetExec, Coercer, pre2k, sccmhunter, impacket (with the `pyOpenSSL==24.0.0` fix for `ntlmrelayx --shadowcredentials`), certipy-ad, modbus_cli, bloodhound-python, pypykatz |
+| Go | Latest official Go toolchain in `/usr/local/go`, plus `gowitness` and `goexec` |
+| Ruby | `evil-winrm`, `winrm`, `winrm-fs` |
+| `/usr/local/bin` | `petitpotam`, `dfscoerce`, `shadowcoerce`, `printerbug`, `cheeseounce`, `kerbrute`, `rdp-sec-check.pl`, `CVE-2005-1794-check.py`, `parse-nmap`, `ligolo-proxy` |
+| `~/tools` | Clones of PKINITtools, krbrelayx, pywhisker, noPac, statistically-likely-usernames and pyautoenv. Each tool with a `requirements.txt` gets its own `.venv`, which pyautoenv activates automatically when you `cd` into it. |
+| Shell | Prompt that shows the current `tun0`/`eth0` IP, aliases (`ll`, `nse`, `serve`, `myip`), `clear -x` |
+| Logging | Every shell command (user and root) is logged through rsyslog `local6` to **`/var/log/commands.log`**, which is useful for the report's activity timeline |
+| Other | proxychains switched to `dynamic_chain`; `bloodhound-setup` run for BloodHound CE |
+
+When it finishes, start BloodHound with `sudo bloodhound-start` and change the default passwords: Neo4j at `http://localhost:7474` (`neo4j`/`neo4j`; update `/etc/bhapi/bhapi.json` to match) and the BloodHound UI (`admin`/`admin`).
+
+> **Note:** Downloads in this script skip TLS certificate verification (`--no-check-certificate`, `http.sslVerify=false`, `ssl_verify_mode: 0`).
+
+### windows-prep.ps1
+
+Stages offensive tooling on a Windows 10/11 or Server 2016–2025 attack box. Everything is pulled at its latest version. Run it from an **elevated** PowerShell, because RSAT, DSInternals and the installers need admin rights:
+
+```powershell
+Set-ExecutionPolicy Bypass -Scope Process -Force; .\windows-prep.ps1
+```
+
+| Area | Details |
+|---|---|
+| `C:\Tools` | Rubeus, Certify, Seatbelt, SharpGPOAbuse, SharpSCCM, Whisker, SharpDPAPI, SigmaPotato, Snaffler, mimikatz, PowerUpSQL, PowerView, SharpHound.ps1, dsinternalparser.py, PingCastle |
+| Windows features | RSAT AD tools (`Install-WindowsFeature` on Server, `Add-WindowsCapability` on client) |
+| PowerShell | DSInternals module (from the PowerShell Gallery) |
+| Applications | Notepad++, Python 3 (latest, on PATH), MobaXterm Home |
+
+Each step reports `[+]` or `[-]`, and the script ends with a list of the steps that failed so you can re-run them. Expect Microsoft Defender to quarantine several of the downloaded binaries unless `C:\Tools` is excluded.
+
+### service-audit.sh
+
+A default-credential and weak-configuration sweep for 23 network services, driven by your Nmap output. Give it TCP port, TCP service and UDP scans (XML, gnmap or normal format). It builds per-service host lists and runs Metasploit login scanners, Nmap NSE scripts and native probes in three phases, cheapest first:
+
+1. **Phase 1** (enumeration and unauthenticated / weak-config checks): NFS, Redis, SNMP, TFTP, Oracle, SSH crypto, SMTP open relay, VNC, SMB, RDP, LDAP, MongoDB, rsync, IPMI, DNS AXFR, finger, X11, r-services
+2. **Phase 2** (fast credential sprays): FTP, MySQL, MSSQL, PostgreSQL
+3. **Phase 3** (slow credential sprays): Telnet, SSH
+
+Output is `summary.txt`, `findings.csv` (one row per host/port/issue), `run.log`, and a folder per service with evidence and `affected*.txt` host lists.
+
+```bash
+sudo ./service-audit.sh -t scans/tcp-ports.xml -T scans/tcp-services.xml -u scans/udp.xml -o audit
+```
+
+**→ Full guide with options, environment variables, sample commands, output format and verification notes: [docs/service-audit.md](docs/service-audit.md)**
+
+> **Authorized testing only.** It guesses credentials online and can lock out accounts. Run with `-x` (dry run) first, and check the lockout policy before Phase 2/3.
+
+---
+
+## SysReptor templates
+
+The [`templates/`](templates/) folder holds exports from the team's SysReptor instance (version 2026.68) in SysReptor's native archive format.
+
+### Report design
+
+**`design-CPTC12-2026-2027-Butters-Family-Farms.tar.gz`** is the report design (SysReptor "project type"). It contains the PDF layout, styles, cover logo and the report and finding fields. Its defaults are pre-filled for this engagement: customer *Butters Family Farm*, team *CyberHawks*, *Great Lakes Regional*, 2 days on 2026-10-24 and 2026-10-25.
+
+PDF structure:
+
+1. **Cover**: report title, customer, date, team and region
+2. **Engagement Notice**: confidentiality notice, disclaimer, rules of engagement and safety notice, document history
+3. **Table of Contents**
+4. **Executive Summary**: overview, key strengths, summary of findings (counts are generated), overall risk, opportunities for improvement
+5. **Technical Summary**: scope, network topology, testing methodology, attack path analysis, strategic recommendations
+6. **Security Vulnerabilities Overview**: table of all findings with their CVSS scores
+7. **Technical Findings**: grouped Critical → High → Medium → Low, each with its risk level, CVSS score and vector, affected systems and quick fix, followed by the security overview, technical analysis, business impact, proof of exploitation, remediation and references
+8. **Appendix**: severity scale, tools and technologies, assessment artifacts / cleanup log
+
+Many report sections ship with **`TODO`** placeholder text (executive summary, scope, strengths, overall risk, improvement, topology, attack path). Search the rendered PDF for "TODO" before you submit.
+
+> **Severity in the PDF comes from CVSS, not from the `severity` field.** Findings are grouped and badged by the level of their CVSS score. See [docs/findings.md](docs/findings.md#how-severity-is-shown-in-the-report).
+
+### Finding templates
+
+The 141 **`template-<Title>.tar.gz`** files are pre-written findings. They have the summary, technical description, vulnerability details, impact, recommendation (remediation plus compensating controls), short recommendation, references and a default CVSS 4.0 vector. **Affected components** and **Proof of Exploitation** are left empty for you to fill in during the engagement.
+
+| Environment | Critical | High | Medium | Low | Total | Examples |
+|---|---:|---:|---:|---:|---:|---|
+| Active Directory | 1 | 40 | 29 | 2 | 72 | ADCS ESC1–ESC17, delegation, coercion, Kerberos, NTLM relay, shared/weak passwords, Zerologon, noPac |
+| Web Application | 11 | 16 | 13 | 3 | 43 | Injection (SQL, NoSQL, LDAP, command, SSTI), XSS, CSRF, SSRF, IDOR, JWT, file upload/inclusion |
+| Network Service | 7 | 9 | 7 | 2 | 25 | FTP/TFTP/NFS/iSCSI exposure, SNMP communities, cleartext protocols, IPMI, SMTP relay, VNC |
+| Unclassified | – | – | – | – | 1 | *SSH: guessable user and password* (unfinished) |
+
+**→ Field definitions and the full list of findings with severity, CVSS score and tags: [docs/findings.md](docs/findings.md)**
+
+### Importing into SysReptor
+
+**Web UI**
+
+1. **Designs → Import** and upload `design-CPTC12-2026-2027-Butters-Family-Farms.tar.gz`.
+2. **Templates → Import** and upload each `template-*.tar.gz` you need.
+3. Create the project from the imported design. In the project, use **Add finding → From template**.
+
+**Command line** (on the SysReptor host, from the directory with its `docker-compose.yml`):
+
+```bash
+docker compose exec -T app python3 manage.py importdemodata --type=design < design-CPTC12-2026-2027-Butters-Family-Farms.tar.gz
+```
+
+```bash
+for f in template-*.tar.gz; do docker compose exec -T app python3 manage.py importdemodata --type=template < "$f"; done
+```
+
+The templates fit any design whose finding field IDs and types match (`title`, `severity`, `cvss`, `affected_components`, `summary`, `short_recommendation`, `description`, `impact`, `recommendation`, `references`, `vulnerability`, `exploit`, `environment`). Labels, help text and defaults don't need to match. Check what is already on the instance before importing, so you don't end up with duplicate templates.
+
+---
+
+## Typical workflow
+
+1. Build the attack boxes with `kali-prep.sh` / `windows-prep.ps1`.
+2. Run the Nmap port, service and UDP scans of the scope (see [Producing the input scans](docs/service-audit.md#producing-the-input-scans)).
+3. Run `service-audit.sh` against them (`-x` first) and work through `summary.txt` / `findings.csv`.
+4. Verify each hit manually. Heuristic checks are flagged in `summary.txt`.
+5. In SysReptor, add each confirmed issue from its template (the [suggested template](docs/service-audit.md#run-order-and-checks) column maps audit results to templates), then fill in **Affected Components** and **Proof of Exploitation** and adjust the CVSS vector.
+6. Replace the `TODO` text in the report sections and use `/var/log/commands.log` for the artifacts and cleanup log.
