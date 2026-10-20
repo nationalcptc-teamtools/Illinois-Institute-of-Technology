@@ -225,7 +225,7 @@ Set these on the command line (after `sudo`) to override the defaults.
 | `MSF_BATCH` | `0` | Same as `-b` |
 | `ORACLE_MAX_CAP` | `1800` | Ceiling on oscanner's derived run-time cap (seconds) |
 | `REDIS_PASS_FILE` | – | Password list for `redis_login`. If unset, the script uses a SecLists `redis-betterdefaultpasslist.txt` if one exists, then SecLists' top-100 common passwords, then a 12-entry built-in list. |
-| `SSH_WEAK_KEX` | `sha1|group1-` |\|group1` | Regex of key-exchange algorithms to flag |
+| `SSH_WEAK_KEX` | `sha1\|group1-` | Regex of key-exchange algorithms to flag (`group1-` so group14/16/18 aren't matched) |
 | `SSH_WEAK_HOSTKEY` | `^ssh-dss$\|^ssh-rsa$\|-cert-v00@` | Regex of host-key algorithms to flag |
 | `SSH_WEAK_CIPHER` | `-cbc\|arcfour\|^3des\|blowfish\|cast128\|^none$\|^rijndael` | Regex of ciphers to flag |
 | `SSH_WEAK_MAC` | `hmac-md5\|hmac-sha1\|-96\|umac-64` | Regex of MACs to flag |
