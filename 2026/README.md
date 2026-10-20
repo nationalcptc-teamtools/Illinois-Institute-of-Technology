@@ -8,13 +8,17 @@ Tooling and reporting material for the **2026–2027 Collegiate Penetration Test
 ├── docs/
 │   ├── service-audit.md      # full usage guide for service-audit.sh
 │   └── findings.md           # reference for every SysReptor finding template
+├── phishing/
+│   ├── phishing.zip          # lure email template (updatebrowser.html + client logo)
+│   └── dummy_site.html       # non-capturing sign-in landing page for the lure
 ├── scripts/
 │   ├── kali-prep.sh          # one-shot Kali attack-box setup
 │   ├── windows-prep.ps1      # one-shot Windows attack-box setup
 │   └── service-audit.sh      # default-credential / weak-config sweep driven by Nmap output
 └── templates/
     ├── design-CPTC12-2026-2027-Butters-Family-Farms.tar.gz   # SysReptor report design
-    └── template-*.tar.gz                                     # 141 SysReptor finding templates
+    ├── template-*.tar.gz                                     # 141 SysReptor finding templates
+    └── CPTC-2026-Services-SysReptor.tar.gz                   # 5 service finding templates in one archive
 ```
 
 ## Contents
@@ -27,6 +31,7 @@ Tooling and reporting material for the **2026–2027 Collegiate Penetration Test
   - [Report design](#report-design)
   - [Finding templates](#finding-templates)
   - [Importing into SysReptor](#importing-into-sysreptor)
+- [Phishing](#phishing)
 - [Typical workflow](#typical-workflow)
 
 ---
@@ -138,6 +143,8 @@ The 141 **`template-<Title>.tar.gz`** files are pre-written findings. They have 
 
 **→ Field definitions and the full list of findings with severity, CVSS score and tags: [docs/findings.md](docs/findings.md)**
 
+**`CPTC-2026-Services-SysReptor.tar.gz`** is a separate archive with five more service findings: *VNC Access without Authentication*, *Anonymous FTP Access to Restricted Files*, *SMB Share Access without Authentication*, *Weak SSH Credentials* and *Weak Telnet Credentials*. It imports the same way as the other templates.
+
 ### Importing into SysReptor
 
 **Web UI**
@@ -157,6 +164,23 @@ for f in template-*.tar.gz; do docker compose exec -T app python3 manage.py impo
 ```
 
 The templates fit any design whose finding field IDs and types match (`title`, `severity`, `cvss`, `affected_components`, `summary`, `short_recommendation`, `description`, `impact`, `recommendation`, `references`, `vulnerability`, `exploit`, `environment`). Labels, help text and defaults don't need to match. Check what is already on the instance before importing, so you don't end up with duplicate templates.
+
+---
+
+## Phishing
+
+The [`phishing/`](phishing/) folder holds a ready-made browser-compliance pretext for the Butters Family Farm social-engineering portion. Use it only if phishing is in scope under the rules of engagement.
+
+| File | What it is |
+|---|---|
+| `phishing.zip` | `Phishing Template/updatebrowser.html`: an "IT Security Compliance Notification" email from the farm's IT team that asks staff to verify their browser settings, with `butters-family-farm.png` as the logo |
+| `dummy_site.html` | A self-contained "Browser Compliance Verification" sign-in page (the logo is embedded as base64). On submit it clears the fields and shows a *training simulation complete* message. It never sends or stores the credentials. |
+
+Before you send it:
+
+- Point the email's **Verify Browser Compliance** button (`https://YOUR-APPROVED-IT-PORTAL.example`) at wherever you host `dummy_site.html`.
+- The email text says *Butter Family Farms*, while the logo and the rest of the engagement material say *Butters*. Fix the name to match the client.
+- Record click-throughs and form submissions for the report from your web server logs. The page itself doesn't capture anything.
 
 ---
 
