@@ -9,7 +9,7 @@ Tooling and reporting material for the **2026–2027 Collegiate Penetration Test
 │   ├── service-audit.md      # full usage guide for service-audit.sh
 │   └── findings.md           # reference for every SysReptor finding template
 ├── phishing/
-│   ├── phishing.zip          # lure email template (updatebrowser.html + client logo)
+│   ├── email.zip             # lure email template (updatebrowser.html + client logo)
 │   └── dummy_site.html       # non-capturing sign-in landing page for the lure
 ├── scripts/
 │   ├── kali-prep.sh          # one-shot Kali attack-box setup
@@ -171,16 +171,30 @@ The templates fit any design whose finding field IDs and types match (`title`, `
 
 The [`phishing/`](phishing/) folder holds a ready-made browser-compliance pretext for the Butters Family Farm social-engineering portion. Use it only if phishing is in scope under the rules of engagement.
 
+The pretext runs in two steps. The **email** tells staff they must verify their workstation browser settings "ASAP" or be referred to their manager. Its button leads to the **landing page**, which asks for their work email and password.
+
 | File | What it is |
 |---|---|
-| `phishing.zip` | `Phishing Template/updatebrowser.html`: an "IT Security Compliance Notification" email from the farm's IT team that asks staff to verify their browser settings, with `butters-family-farm.png` as the logo |
-| `dummy_site.html` | A self-contained "Browser Compliance Verification" sign-in page (the logo is embedded as base64). On submit it clears the fields and shows a *training simulation complete* message. It never sends or stores the credentials. |
+| `email.zip` | The phishing **email** template. Unzips to a `Phishing Template/` folder (details below). |
+| `dummy_site.html` | The **landing page**: a self-contained "Browser Compliance Verification" sign-in page (the logo is embedded as base64). On submit it clears the fields and shows a *training simulation complete* message. It never sends or stores the credentials. |
 
-Before you send it:
+### email.zip
 
-- Point the email's **Verify Browser Compliance** button (`https://YOUR-APPROVED-IT-PORTAL.example`) at wherever you host `dummy_site.html`.
-- The email text says *Butter Family Farms*, while the logo and the rest of the engagement material say *Butters*. Fix the name to match the client.
-- Record click-throughs and form submissions for the report from your web server logs. The page itself doesn't capture anything.
+| File in `Phishing Template/` | Contents |
+|---|---|
+| `updatebrowser.html` | HTML email body. It has a dark theme, the logo at the top, a "Butter Family Farms IT Operations" header and a compliance notice signed by the *IT Security Team*. A **Verify Browser Compliance** button links to `https://YOUR-APPROVED-IT-PORTAL.example`. The page `<title>`, *IT Security Compliance Notification*, works as the subject line. |
+| `butters-family-farm.png` | Client logo (671×398, longhorn "B" on a white background). The email loads it by relative path (`src="butters-family-farm.png"`). |
+
+To use it, unzip it and load `updatebrowser.html` into your sending tool (for example a GoPhish *Email Template* → *Import Email* / HTML tab). Then:
+
+- **Set the link.** Replace `https://YOUR-APPROVED-IT-PORTAL.example` with the URL where you host `dummy_site.html`. In GoPhish, use `{{.URL}}` so each click is tracked per recipient.
+- **Fix the logo reference.** A relative image path won't resolve in a recipient's mail client. Attach the PNG inline (CID) or host it and use an absolute URL.
+- **Fix the client name.** The email text says *Butter Family Farms*, while the logo and the rest of the engagement material say *Butters*.
+- **Check rendering.** The styles live in a `<head>` `<style>` block, and some clients (notably Outlook desktop) ignore parts of it. Send a test to yourself first.
+
+### Results
+
+Neither file records anything itself. Opens and clicks come from your sending tool or from the web server log entries for `dummy_site.html`. Submitting the form sends **no request at all**, because the page cancels the submit in JavaScript. To count submissions, add a request to the submit handler that carries no field values (for example, `fetch('/submitted')`). Report the results as counts, not captured credentials.
 
 ---
 
