@@ -511,14 +511,15 @@ msf_success_lines() {
   [[ -r "$1" ]] || return 0
   strip_ansi < "$1" 2>/dev/null | grep -Ei '^\[\+\].*success'
 }
-msf_hits() { msf_success_lines "$1" | sed -nE 's/^\[\+\][[:space:]]*([0-9]{1,3}(\.[0-9]{1,3}){3}).*/\1/p' ; }
+# Capture the host from an msf "[+] host:port" line - IPv4 or bracketed IPv6.
+msf_hits() { msf_success_lines "$1" | sed -nE 's/^\[\+\][[:space:]]*\[?([0-9A-Fa-f:.]+)\]?:[0-9].*/\1/p' ; }
 
 # HEURISTIC credential extraction - msf output format varies per module/version.
 record_msf_creds() { # <spoolfile> <service> <port>
   local f="$1" svc="$2" port="$3" line ip cred user pass
   [[ -r "$f" ]] || return 0
   while IFS= read -r line; do
-    ip="$(sed -nE 's/^\[\+\][[:space:]]*([0-9.]+):.*/\1/p' <<<"$line")"
+    ip="$(sed -nE 's/^\[\+\][[:space:]]*\[?([0-9A-Fa-f:.]+)\]?:[0-9].*/\1/p' <<<"$line")"
     [[ -n "$ip" ]] || continue
     cred="$(sed -E 's/^.*[Ss]uccess(ful)?:[[:space:]]*//' <<<"$line")"
     cred="${cred#\'}"; cred="${cred%%\'*}"; cred="${cred%% *}"; cred="${cred%%@*}"
@@ -571,7 +572,7 @@ record_redis_creds() { # <spoolfile> <port>
   local f="$1" port="$2" line ip cred user pass
   [[ -r "$f" ]] || return 0
   while IFS= read -r line; do
-    ip="$(sed -nE 's/^\[\+\][[:space:]]*([0-9.]+):.*/\1/p' <<<"$line")"
+    ip="$(sed -nE 's/^\[\+\][[:space:]]*\[?([0-9A-Fa-f:.]+)\]?:[0-9].*/\1/p' <<<"$line")"
     [[ -n "$ip" ]] || continue
     cred="$(sed -E 's/^.*[Ss]uccess(ful)?:[[:space:]]*//' <<<"$line")"
     cred="${cred#\'}"; cred="${cred%%\'*}"
@@ -600,7 +601,7 @@ record_vnc_creds() { # <spoolfile> <port>
   local f="$1" port="$2" line ip cred
   [[ -r "$f" ]] || return 0
   while IFS= read -r line; do
-    ip="$(sed -nE 's/^\[\+\][[:space:]]*([0-9.]+):.*/\1/p' <<<"$line")"
+    ip="$(sed -nE 's/^\[\+\][[:space:]]*\[?([0-9A-Fa-f:.]+)\]?:[0-9].*/\1/p' <<<"$line")"
     [[ -n "$ip" ]] || continue
     cred="$(sed -E 's/^.*[Ss]uccess(ful)?:[[:space:]]*//' <<<"$line")"
     cred="${cred#\'}"; cred="${cred%%\'*}"; cred="${cred#:}"
