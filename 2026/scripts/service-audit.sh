@@ -68,7 +68,7 @@ NMAP_EXTRA="${NMAP_EXTRA:-}"
 # SSH weak-algorithm denylists - extended regex per category, matched against
 # each algorithm ssh2-enum-algos reports. ssh-rsa (SHA-1 sig) and hmac-sha1 are
 # deprecated-but-common and deliberately flagged; override to taste.
-SSH_WEAK_KEX="${SSH_WEAK_KEX:-sha1|group1}"
+SSH_WEAK_KEX="${SSH_WEAK_KEX:-sha1|group1-}"   # group1- only; not group14/16/18
 SSH_WEAK_HOSTKEY="${SSH_WEAK_HOSTKEY:-^ssh-dss$|^ssh-rsa$|-cert-v00@}"
 SSH_WEAK_CIPHER="${SSH_WEAK_CIPHER:--cbc|arcfour|^3des|blowfish|cast128|^none$|^rijndael}"
 SSH_WEAK_MAC="${SSH_WEAK_MAC:-hmac-md5|hmac-sha1|-96|umac-64}"
@@ -1489,7 +1489,7 @@ fi
 # --------------------------------------------------------------------------- #
 want ldap    && simple_nse_check ldap "$LDAP_PORT" "$LDAP_RE" ldap-rootdse \
   "namingContexts|rootDomainNamingContext|supportedLDAPVersion" \
-  "LDAP anonymous bind allowed" "ldap anon-bind"
+  "LDAP rootDSE readable anonymously" "ldap rootdse"
 
 want mongodb && simple_nse_check mongodb "$MONGODB_PORT" "$MONGODB_RE" "mongodb-info,mongodb-databases" \
   "totalSize|buildInfo|Build info|ok = " \
