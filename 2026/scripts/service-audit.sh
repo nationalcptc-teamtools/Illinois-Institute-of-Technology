@@ -56,6 +56,11 @@ BRUTEFORCE_SPEED="${BRUTEFORCE_SPEED:-5}"     # 0=slowest (delays), 5=no delay
 MSF_STOP_ON_SUCCESS="${MSF_STOP_ON_SUCCESS:-false}"  # true = stop host at 1st hit
 MSF_VERBOSE="${MSF_VERBOSE:-false}"           # true = log every failed attempt
 MSF_CREATE_SESSION="${MSF_CREATE_SESSION:-false}"    # ssh/telnet: open shells on hit
+# 1 = run all Phase 2/3 credential sprays in ONE msfconsole per phase instead of
+# one per service (fewer ~15s cold starts). Trade-off: a single outer wall-clock
+# cap per phase replaces the per-service caps (msf's inner MaxMinutesPerService
+# still bounds each module); Ctrl-C keeps only already-finished modules.
+MSF_BATCH="${MSF_BATCH:-0}"
 
 ORACLE_MAX_CAP="${ORACLE_MAX_CAP:-1800}"      # ceiling on the derived oscanner cap
 NMAP_EXTRA="${NMAP_EXTRA:-}"
@@ -75,6 +80,7 @@ ALL_SERVICES="ssh,ftp,telnet,mysql,mssql,postgres,oracle,redis,nfs,snmp,tftp,smt
 SELECTED="$ALL_SERVICES"
 
 declare -a TCP_PORTSCANS=() TCP_SVCSCANS=() UDP_SCANS=() SNMP_LISTS=() TFTP_LISTS=()
+BATCH_RC=""; declare -a BATCH_ITEMS=()   # batched-msf resource file + deferred parses
 
 # service | msf module path | default tcp port | nmap service-name regex
 # Ordered fastest -> slowest. telnet and ssh are deliberately last: their
@@ -196,6 +202,8 @@ Options:
   -g N      msf MaxGuessesPerService               (default: ${MSF_MAX_GUESSES}, 0 = off)
   -B 0-5    msf BRUTEFORCE_SPEED                   (default: ${BRUTEFORCE_SPEED})
   -1        Stop guessing a host after the first valid credential
+  -b        Batch Phase 2/3 sprays into one msfconsole per phase (fewer cold
+            starts; one outer cap per phase instead of per-service)
   -F        UDP: also accept state 'open|filtered' (default: 'open' only)
   -x        Dry run: build host lists + print commands, attack nothing
   -h        Help
@@ -209,7 +217,7 @@ Run order (fastest / most bounded first):
 Env overrides: SECLISTS_DIR THREADS CONNECT_TIMEOUT NMAP_HOST_TIMEOUT
                MSF_TIMEOUT MSF_TIMEOUT_SSH MSF_TIMEOUT_TELNET (per-service caps)
                MSF_MAX_MINUTES MSF_MAX_GUESSES MSF_MAX_GUESSES_PER_USER
-               BRUTEFORCE_SPEED MSF_STOP_ON_SUCCESS MSF_VERBOSE
+               BRUTEFORCE_SPEED MSF_STOP_ON_SUCCESS MSF_VERBOSE MSF_BATCH
                MSF_CREATE_SESSION ORACLE_MAX_CAP NMAP_EXTRA REDIS_PASS_FILE
                SSH_WEAK_KEX SSH_WEAK_HOSTKEY SSH_WEAK_CIPHER SSH_WEAK_MAC
                VNC_MODERN_RE RDP_BLUEKEEP DNS_ZONES
@@ -226,7 +234,7 @@ want() { [[ ",$SELECTED," == *",$1,"* ]]; }
 # Args
 # --------------------------------------------------------------------------- #
 [[ $# -eq 0 ]] && usage
-while getopts ":t:T:u:s:f:o:S:H:N:M:m:g:B:1Fxh" opt; do
+while getopts ":t:T:u:s:f:o:S:H:N:M:m:g:B:b1Fxh" opt; do
   case "$opt" in
     t) TCP_PORTSCANS+=("$OPTARG") ;;
     T) TCP_SVCSCANS+=("$OPTARG")  ;;
@@ -242,6 +250,7 @@ while getopts ":t:T:u:s:f:o:S:H:N:M:m:g:B:1Fxh" opt; do
     g) MSF_MAX_GUESSES="$OPTARG"  ;;
     B) BRUTEFORCE_SPEED="$OPTARG" ;;
     1) MSF_STOP_ON_SUCCESS=true   ;;
+    b) MSF_BATCH=1                ;;
     F) UDP_INCLUDE_FILTERED=1     ;;
     x) DRYRUN=1                   ;;
     h) usage                      ;;
@@ -522,9 +531,56 @@ run_msf_login() { # <svc> <module> <dir> <hostfile> <port> <passlist>
             extra+="set CreateSession ${MSF_CREATE_SESSION} ; " ;;
   esac
   extra+="$(msf_brute_opts)"
-  local cmd="use auxiliary/scanner/${mod} ; set RHOSTS file:${hf} ; set RPORT ${port} ; set USERPASS_FILE ${pl} ; set USER_AS_PASS true ; set BLANK_PASSWORDS true ; set THREADS ${THREADS} ; ${extra}spool ${svc}-${port}-defaultpass.txt ; run ; exit -y"
+  # Absolute paths so the command also works in a batched console (no per-module cd).
+  local hf_abs="$dir/$hf" pl_abs="$dir/$pl" spool_abs="$dir/${svc}-${port}-defaultpass.txt"
+  local cmd="use auxiliary/scanner/${mod} ; set RHOSTS file:${hf_abs} ; set RPORT ${port} ; set USERPASS_FILE ${pl_abs} ; set USER_AS_PASS true ; set BLANK_PASSWORDS true ; set THREADS ${THREADS} ; ${extra}spool ${spool_abs} ; run"
+  if [[ $MSF_BATCH -eq 1 ]]; then
+    [[ $DRYRUN -eq 0 ]] && log "$svc: queued msf login on port $port ($(wc -l < "$dir/$hf") hosts)"
+    printf '%s\n' "$cmd" >> "$BATCH_RC"
+    return 0
+  fi
   [[ $DRYRUN -eq 0 ]] && log "$svc: msf login scan on port $port ($(wc -l < "$dir/$hf") hosts, cap $(msf_cap_for "$svc")s)"
-  msf_run "$dir" "${svc}-${port}-console.log" "$cmd" "$(msf_cap_for "$svc")"
+  msf_run "$dir" "${svc}-${port}-console.log" "$cmd ; exit -y" "$(msf_cap_for "$svc")"
+}
+
+# Run every queued Phase-2/3 login module in ONE msfconsole, then parse each
+# module's spool and emit the per-service summary lines (deferred from the loop).
+msf_batch_flush() {
+  [[ $MSF_BATCH -eq 1 ]] || return 0
+  [[ -s "${BATCH_RC:-}" ]] || return 0
+  printf 'exit -y\n' >> "$BATCH_RC"
+  local n="${#BATCH_ITEMS[@]}" cap=0 lg
+  lg="$OUTDIR/$(basename "$BATCH_RC" .rc)-console.log"
+  [[ "$MSF_TIMEOUT" =~ ^[1-9][0-9]*$ ]] && cap=$(( MSF_TIMEOUT * (n > 0 ? n : 1) ))
+  logcmd "$OUTDIR" "msfconsole -q -r $BATCH_RC  (batched, $n modules, cap ${cap}s)"
+  if [[ $DRYRUN -eq 1 ]]; then
+    printf '  (dry-run) batched msfconsole -q -r %q (%s modules):\n' "$BATCH_RC" "$n"
+    sed 's/^/      /' "$BATCH_RC"
+    : > "$BATCH_RC"; BATCH_ITEMS=(); return 0
+  fi
+  if command -v msfconsole >/dev/null; then
+    log "msf: running $n batched login module(s) in one console (cap ${cap}s)"
+    local -a pre=()
+    [[ "$cap" =~ ^[1-9][0-9]*$ ]] && pre=(timeout --foreground --kill-after=30s "${cap}s")
+    ( "${pre[@]}" msfconsole -q -r "$BATCH_RC" ) > "$lg" 2>&1
+    local rc=$?
+    [[ $rc -eq 124 || $rc -eq 137 ]] && warn "batched msf run killed at ${cap}s cap - results are PARTIAL"
+  else
+    warn "msfconsole missing; batched run skipped"
+  fi
+  local it dir spool svc port aff lbl
+  declare -A _lbl
+  for it in "${BATCH_ITEMS[@]}"; do
+    IFS='|' read -r dir spool svc port aff lbl <<<"$it"
+    msf_hits "$spool" >> "$aff"
+    record_msf_creds "$spool" "$svc" "$port"
+    _lbl["$aff"]="$lbl"
+  done
+  for aff in "${!_lbl[@]}"; do
+    dedupe_file "$aff"
+    printf '%-22s : %s host(s)\n' "${_lbl[$aff]}" "$(wc -l < "$aff")" >> "$SUMMARY"
+  done
+  : > "$BATCH_RC"; BATCH_ITEMS=()
 }
 
 msf_success_lines() {
@@ -836,13 +892,19 @@ run_tcp_creds() {
       [[ -s "$dir/$target" ]] || { warn "ftp: no hosts left on port $port after anon exclusion"; continue; }
       [[ -n "$pl_base" ]] || continue
       run_msf_login "$svc" "$mod" "$dir" "$target" "$port" "$pl_base"
-      msf_hits "$dir/ftp-${port}-defaultpass.txt" >> "$dir/affected-defaultpass.txt"
-      record_msf_creds "$dir/ftp-${port}-defaultpass.txt" "ftp" "$port"
+      if [[ $MSF_BATCH -eq 1 ]]; then
+        BATCH_ITEMS+=("$dir|$dir/ftp-${port}-defaultpass.txt|ftp|$port|$dir/affected-defaultpass.txt|ftp defaultpass")
+      else
+        msf_hits "$dir/ftp-${port}-defaultpass.txt" >> "$dir/affected-defaultpass.txt"
+        record_msf_creds "$dir/ftp-${port}-defaultpass.txt" "ftp" "$port"
+      fi
     done
     dedupe_file "$dir/affected-anonymous.txt"
-    dedupe_file "$dir/affected-defaultpass.txt"
     printf '%-22s : %s host(s)\n' "ftp anonymous"   "$(wc -l < "$dir/affected-anonymous.txt")"   >> "$SUMMARY"
-    printf '%-22s : %s host(s)\n' "ftp defaultpass" "$(wc -l < "$dir/affected-defaultpass.txt")" >> "$SUMMARY"
+    if [[ $MSF_BATCH -eq 0 ]]; then
+      dedupe_file "$dir/affected-defaultpass.txt"
+      printf '%-22s : %s host(s)\n' "ftp defaultpass" "$(wc -l < "$dir/affected-defaultpass.txt")" >> "$SUMMARY"
+    fi
     continue
   fi
 
@@ -854,11 +916,17 @@ run_tcp_creds() {
     port="${BASH_REMATCH[1]}"
     [[ -n "$pl_base" ]] || continue
     run_msf_login "$svc" "$mod" "$dir" "$base" "$port" "$pl_base"
-    msf_hits "$dir/${svc}-${port}-defaultpass.txt" >> "$dir/affected.txt"
-    record_msf_creds "$dir/${svc}-${port}-defaultpass.txt" "$svc" "$port"
+    if [[ $MSF_BATCH -eq 1 ]]; then
+      BATCH_ITEMS+=("$dir|$dir/${svc}-${port}-defaultpass.txt|$svc|$port|$dir/affected.txt|$svc")
+    else
+      msf_hits "$dir/${svc}-${port}-defaultpass.txt" >> "$dir/affected.txt"
+      record_msf_creds "$dir/${svc}-${port}-defaultpass.txt" "$svc" "$port"
+    fi
   done
-  dedupe_file "$dir/affected.txt"
-  printf '%-22s : %s host(s)\n' "$svc" "$(wc -l < "$dir/affected.txt")" >> "$SUMMARY"
+  if [[ $MSF_BATCH -eq 0 ]]; then
+    dedupe_file "$dir/affected.txt"
+    printf '%-22s : %s host(s)\n' "$svc" "$(wc -l < "$dir/affected.txt")" >> "$SUMMARY"
+  fi
   done
 }
 
@@ -1499,7 +1567,9 @@ fi
 #   One TCP connect + one auth exchange per guess. Fast per attempt.
 # --------------------------------------------------------------------------- #
 phase "PHASE 2: ftp / mysql / mssql / postgres sprays"
+[[ $MSF_BATCH -eq 1 ]] && { BATCH_RC="$WORK/phase2.rc"; : > "$BATCH_RC"; BATCH_ITEMS=(); }
 run_tcp_creds "${PHASE_FAST_TCP[@]}"
+msf_batch_flush
 
 
 # --------------------------------------------------------------------------- #
@@ -1510,7 +1580,9 @@ run_tcp_creds "${PHASE_FAST_TCP[@]}"
 #   If you have to Ctrl-C the run, everything above is already on disk.
 # --------------------------------------------------------------------------- #
 phase "PHASE 3: telnet / ssh sprays (slowest)"
+[[ $MSF_BATCH -eq 1 ]] && { BATCH_RC="$WORK/phase3.rc"; : > "$BATCH_RC"; BATCH_ITEMS=(); }
 run_tcp_creds "${PHASE_SLOW_TCP[@]}"
+msf_batch_flush
 
 # --------------------------------------------------------------------------- #
 # Wrap up
