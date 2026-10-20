@@ -6,7 +6,9 @@
 # per-service / per-port host lists, then runs Metasploit login scanners,
 # oscanner, nmap ftp-anon, snmp-brute + msf snmp_login, msf tftpbrute,
 # msf redis_server + nmap redis-info, nmap ssh2-enum-algos/sshv1,
-# nmap smtp-open-relay, nmap vnc-info + msf vnc_login, and showmount -e for NFS.
+# nmap smtp-open-relay, nmap vnc-info + msf vnc_login, showmount -e for NFS,
+# nmap smb-*/rdp-*/ldap-rootdse/mongodb-*/rsync-list-modules/x11-access/finger/
+# dns-zone-transfer, and msf ipmi_cipher_zero + ipmi_dumphashes.
 #
 # FTP and Telnet are additionally flagged as cleartext-auth protocols, but only
 # where the TCP service scan (-T) confirms the protocol by name - never on a
@@ -69,7 +71,7 @@ SSH_WEAK_MAC="${SSH_WEAK_MAC:-hmac-md5|hmac-sha1|-96|umac-64}"
 OUTDIR="."
 DRYRUN=0
 UDP_INCLUDE_FILTERED=0
-ALL_SERVICES="ssh,ftp,telnet,mysql,mssql,postgres,oracle,redis,nfs,snmp,tftp,smtp,vnc"
+ALL_SERVICES="ssh,ftp,telnet,mysql,mssql,postgres,oracle,redis,nfs,snmp,tftp,smtp,vnc,smb,rdp,ldap,mongodb,rsync,ipmi,dns,finger,x11,rservices"
 SELECTED="$ALL_SERVICES"
 
 declare -a TCP_PORTSCANS=() TCP_SVCSCANS=() UDP_SCANS=() SNMP_LISTS=() TFTP_LISTS=()
@@ -95,6 +97,21 @@ SMTP_PORT=25     ; SMTP_RE='^smtp$'
 VNC_PORT=5900    ; VNC_RE='^vnc$'
 # VNC security types considered modern/strong - everything else is flagged.
 VNC_MODERN_RE="${VNC_MODERN_RE:-Tight|VeNCrypt|RA2}"
+SMB_PORT=445     ; SMB_RE='^(microsoft-ds|netbios-ssn|smb)$'
+RDP_PORT=3389    ; RDP_RE='^(ms-wbt-server|rdp)$'
+LDAP_PORT=389    ; LDAP_RE='^(ldap|ldapssl|ldaps)$'
+MONGODB_PORT=27017 ; MONGODB_RE='^mongod(b)?$'
+RSYNC_PORT=873   ; RSYNC_RE='^rsync$'
+IPMI_PORT=623    ; IPMI_RE='^(asf-rmcp|ipmi)$'
+DNS_PORT=53      ; DNS_RE='^domain$'
+FINGER_PORT=79   ; FINGER_RE='^finger$'
+X11_PORT=6000    ; X11_RE='^x11$'
+RSERVICES_RE='^(exec|login|shell|rlogin|rsh|rexec)$'   # r-services (512/513/514)
+# BlueKeep (CVE-2019-0708) scanning can crash unpatched hosts, so it is OFF by
+# default; set RDP_BLUEKEEP=1 only when the scope allows it.
+RDP_BLUEKEEP="${RDP_BLUEKEEP:-0}"
+# DNS AXFR needs a zone name, not just an IP; set DNS_ZONES=a.com,b.com to test.
+DNS_ZONES="${DNS_ZONES:-}"
 
 # --------------------------------------------------------------------------- #
 # Helpers
@@ -184,8 +201,10 @@ Options:
   -h        Help
 
 Run order (fastest / most bounded first):
-  1 nfs -> 2 redis -> 3 snmp -> 4 tftp -> 5 oracle -> 6 ssh-crypto -> 7 smtp -> 8 vnc
-  9 ftp -> 10 mysql -> 11 mssql -> 12 postgres -> 13 telnet -> 14 ssh
+  PHASE 1 (no credential guessing): nfs redis snmp tftp oracle ssh-crypto smtp
+          vnc smb rdp ldap mongodb rsync ipmi dns finger x11 rservices
+  PHASE 2 (fast cred sprays):  ftp mysql mssql postgres
+  PHASE 3 (slow cred sprays):  telnet ssh
 
 Env overrides: SECLISTS_DIR THREADS CONNECT_TIMEOUT NMAP_HOST_TIMEOUT
                MSF_TIMEOUT MSF_TIMEOUT_SSH MSF_TIMEOUT_TELNET (per-service caps)
@@ -193,6 +212,7 @@ Env overrides: SECLISTS_DIR THREADS CONNECT_TIMEOUT NMAP_HOST_TIMEOUT
                BRUTEFORCE_SPEED MSF_STOP_ON_SUCCESS MSF_VERBOSE
                MSF_CREATE_SESSION ORACLE_MAX_CAP NMAP_EXTRA REDIS_PASS_FILE
                SSH_WEAK_KEX SSH_WEAK_HOSTKEY SSH_WEAK_CIPHER SSH_WEAK_MAC
+               VNC_MODERN_RE RDP_BLUEKEEP DNS_ZONES
 
 Outputs: <service>/<service>-<port>.txt, <service>/affected*.txt,
          run.log, findings.csv, summary.txt
@@ -539,6 +559,33 @@ nmap_script_hits() { # <.nmap file> <egrep pattern>
   ' "$f"
 }
 
+# Generic Phase-1 NSE check for the simple one-finding services: build the host
+# list, run one --script set per port, and flag every host whose .nmap output
+# matches <pat>. Writes affected.txt + one summary line.
+simple_nse_check() { # <svc> <defport> <svc_re> <nmap-script> <pat> <finding> <label> [heuristic]
+  local svc="$1" defport="$2" re="$3" script="$4" pat="$5" finding="$6" label="$7" heur="${8:-}"
+  local dir="$OUTDIR/$svc"; mkdir -p "$dir"; : > "$dir/affected.txt"
+  local hf base port ip
+  if build_hostlists "$svc" "$defport" "$re" "$dir"; then
+    for hf in "$dir/$svc"-*.txt; do
+      base="$(basename "$hf")"
+      [[ "$base" =~ ^${svc}-([0-9]+)\.txt$ ]] || continue
+      port="${BASH_REMATCH[1]}"
+      nmap_run "$dir" -Pn "${NMAP_TO[@]}" $NMAP_EXTRA -p "$port" --script "$script" \
+               -iL "$base" -oA "$svc-$port"
+      [[ $DRYRUN -eq 0 ]] || continue
+      nmap_script_hits "$dir/$svc-$port.nmap" "$pat" | dedupe_hosts >> "$dir/affected.txt"
+      while read -r ip; do
+        [[ -n "$ip" ]] && add_finding "$ip" "$port" "$svc" "$finding" "" "" "" "$svc/$svc-$port.nmap"
+      done < <(nmap_script_hits "$dir/$svc-$port.nmap" "$pat" | dedupe_hosts)
+    done
+    dedupe_file "$dir/affected.txt"
+  else
+    warn "$svc: no hosts found"
+  fi
+  printf '%-22s : %s host(s)%s\n' "$label" "$(wc -l < "$dir/affected.txt")" "${heur:+  [HEURISTIC]}" >> "$SUMMARY"
+}
+
 # Redis AUTH takes a bare password (no username pre-6.0), so it needs a
 # PASS_FILE, not the user:pass USERPASS_FILE format. Order of preference:
 #   1. $REDIS_PASS_FILE if set
@@ -821,7 +868,7 @@ run_tcp_creds() {
 #   nmap NSE scans are bounded by --host-timeout; showmount and the
 #   redis/snmp probes are one or a few connects per host.
 # --------------------------------------------------------------------------- #
-phase "PHASE 1: nfs / redis / snmp / tftp / oracle / ssh-crypto / smtp / vnc"
+phase "PHASE 1: enumeration + unauth / anon / weak-config checks"
 
 # --------------------------------------------------------------------------- #
 # NFS (showmount -e)
@@ -1249,6 +1296,201 @@ if want vnc; then
   printf '%-22s : %s host(s)\n' "vnc no-auth"      "$(wc -l < "$dir/affected-noauth.txt")"      >> "$SUMMARY"
   printf '%-22s : %s host(s)\n' "vnc weak-sectype" "$(wc -l < "$dir/affected-weaksectype.txt")" >> "$SUMMARY"
   printf '%-22s : %s host(s)\n' "vnc defaultpass"  "$(wc -l < "$dir/affected-defaultpass.txt")" >> "$SUMMARY"
+fi
+
+# --------------------------------------------------------------------------- #
+# SMB (SMBv1 / signing not required / null session)
+# --------------------------------------------------------------------------- #
+# Config checks only - no credential spray (SMB/AD lockout risk).
+if want smb; then
+  dir="$OUTDIR/smb"; mkdir -p "$dir"
+  : > "$dir/affected-smbv1.txt"; : > "$dir/affected-nosigning.txt"; : > "$dir/affected-nullsession.txt"
+  if build_hostlists "smb" "$SMB_PORT" "$SMB_RE" "$dir"; then
+    for hf in "$dir"/smb-*.txt; do
+      base="$(basename "$hf")"
+      [[ "$base" =~ ^smb-([0-9]+)\.txt$ ]] || continue
+      port="${BASH_REMATCH[1]}"
+      nmap_run "$dir" -Pn "${NMAP_TO[@]}" $NMAP_EXTRA -p "$port" \
+               --script smb-protocols,smb-security-mode,smb2-security-mode,smb-enum-shares \
+               -iL "$base" -oA "smb-$port"
+      [[ $DRYRUN -eq 0 ]] || continue
+      f="$dir/smb-$port.nmap"
+      nmap_script_hits "$f" "SMBv1|NT LM 0.12" | dedupe_hosts >> "$dir/affected-smbv1.txt"
+      while read -r ip; do
+        [[ -n "$ip" ]] && add_finding "$ip" "$port" "smb" "SMBv1 enabled" "" "" "" "smb/smb-$port.nmap"
+      done < <(nmap_script_hits "$f" "SMBv1|NT LM 0.12" | dedupe_hosts)
+      nmap_script_hits "$f" "not required|signing disabled|Message signing disabled" | dedupe_hosts >> "$dir/affected-nosigning.txt"
+      while read -r ip; do
+        [[ -n "$ip" ]] && add_finding "$ip" "$port" "smb" "SMB message signing not required" "" "" "" "smb/smb-$port.nmap"
+      done < <(nmap_script_hits "$f" "not required|signing disabled|Message signing disabled" | dedupe_hosts)
+      nmap_script_hits "$f" "Anonymous access:|<anonymous>|access: READ" | dedupe_hosts >> "$dir/affected-nullsession.txt"
+      while read -r ip; do
+        [[ -n "$ip" ]] && add_finding "$ip" "$port" "smb" "null/anonymous SMB session" "" "" "" "smb/smb-$port.nmap"
+      done < <(nmap_script_hits "$f" "Anonymous access:|<anonymous>|access: READ" | dedupe_hosts)
+    done
+    dedupe_file "$dir/affected-smbv1.txt"; dedupe_file "$dir/affected-nosigning.txt"; dedupe_file "$dir/affected-nullsession.txt"
+  else
+    warn "smb: no hosts found"
+  fi
+  printf '%-22s : %s host(s)\n' "smb smbv1"       "$(wc -l < "$dir/affected-smbv1.txt")"     >> "$SUMMARY"
+  printf '%-22s : %s host(s)\n' "smb no-signing"  "$(wc -l < "$dir/affected-nosigning.txt")" >> "$SUMMARY"
+  printf '%-22s : %s host(s)  [HEURISTIC]\n' "smb null-session" "$(wc -l < "$dir/affected-nullsession.txt")" >> "$SUMMARY"
+fi
+
+# --------------------------------------------------------------------------- #
+# RDP (legacy security layer / NLA not enforced; optional BlueKeep)
+# --------------------------------------------------------------------------- #
+if want rdp; then
+  dir="$OUTDIR/rdp"; mkdir -p "$dir"
+  : > "$dir/affected-weaksec.txt"; : > "$dir/affected-bluekeep.txt"
+  if build_hostlists "rdp" "$RDP_PORT" "$RDP_RE" "$dir"; then
+    for hf in "$dir"/rdp-*.txt; do
+      base="$(basename "$hf")"
+      [[ "$base" =~ ^rdp-([0-9]+)\.txt$ ]] || continue
+      port="${BASH_REMATCH[1]}"
+      nmap_run "$dir" -Pn "${NMAP_TO[@]}" $NMAP_EXTRA -p "$port" \
+               --script rdp-enum-encryption,rdp-ntlm-info -iL "$base" -oA "rdp-$port"
+      if [[ $DRYRUN -eq 0 ]]; then
+        f="$dir/rdp-$port.nmap"
+        nmap_script_hits "$f" "RDP Security Layer|Native RDP|CredSSP .*: SUPPORTED" | dedupe_hosts >> "$dir/affected-weaksec.txt"
+        while read -r ip; do
+          [[ -n "$ip" ]] && add_finding "$ip" "$port" "rdp" "RDP legacy security layer offered (NLA not enforced)" \
+            "" "" "" "rdp/rdp-$port.nmap"
+        done < <(nmap_script_hits "$f" "RDP Security Layer|Native RDP|CredSSP .*: SUPPORTED" | dedupe_hosts)
+      fi
+      if [[ "$RDP_BLUEKEEP" == "1" ]]; then
+        cmd="use auxiliary/scanner/rdp/cve_2019_0708_bluekeep ; set RHOSTS file:${base} ; set RPORT ${port} ; set THREADS ${THREADS} ; spool rdp-${port}-bluekeep.txt ; run ; exit -y"
+        [[ $DRYRUN -eq 0 ]] && log "rdp: msf BlueKeep check on port $port (RDP_BLUEKEEP=1)"
+        msf_run "$dir" "rdp-${port}-bluekeep-console.log" "$cmd"
+        if [[ $DRYRUN -eq 0 ]]; then
+          strip_ansi < "$dir/rdp-${port}-bluekeep.txt" 2>/dev/null \
+            | grep -Ei 'is vulnerable' | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | dedupe_hosts >> "$dir/affected-bluekeep.txt"
+          while read -r ip; do
+            [[ -n "$ip" ]] && add_finding "$ip" "$port" "rdp" "BlueKeep (CVE-2019-0708) vulnerable" \
+              "" "" "" "rdp/rdp-${port}-bluekeep.txt"
+          done < <(dedupe_hosts < "$dir/affected-bluekeep.txt")
+        fi
+      fi
+    done
+    dedupe_file "$dir/affected-weaksec.txt"; dedupe_file "$dir/affected-bluekeep.txt"
+  else
+    warn "rdp: no hosts found"
+  fi
+  printf '%-22s : %s host(s)\n' "rdp weak-sec" "$(wc -l < "$dir/affected-weaksec.txt")" >> "$SUMMARY"
+  [[ "$RDP_BLUEKEEP" == "1" ]] && \
+    printf '%-22s : %s host(s)\n' "rdp bluekeep" "$(wc -l < "$dir/affected-bluekeep.txt")" >> "$SUMMARY"
+fi
+
+# --------------------------------------------------------------------------- #
+# IPMI (UDP 623) - cipher-zero auth bypass + RAKP 2.0 hash disclosure
+# --------------------------------------------------------------------------- #
+if want ipmi; then
+  dir="$OUTDIR/ipmi"; mkdir -p "$dir"
+  : > "$dir/affected-cipher0.txt"; : > "$dir/affected-hashes.txt"
+  awk -F'\t' '$2=="623" {print $1}' "$UDP_TSV" | dedupe_hosts > "$dir/ipmi-623.txt"
+  check_hostnames "$dir/ipmi-623.txt" "ipmi/ipmi-623.txt"
+  if [[ -s "$dir/ipmi-623.txt" ]]; then
+    ok "ipmi: $(wc -l < "$dir/ipmi-623.txt") host(s) -> ipmi/ipmi-623.txt"
+    cmd="use auxiliary/scanner/ipmi/ipmi_cipher_zero ; set RHOSTS file:ipmi-623.txt ; set THREADS ${THREADS} ; spool ipmi-cipher0.txt ; run ; exit -y"
+    [[ $DRYRUN -eq 0 ]] && log "ipmi: msf ipmi_cipher_zero"
+    msf_run "$dir" "ipmi-cipher0-console.log" "$cmd"
+    cmd="use auxiliary/scanner/ipmi/ipmi_dumphashes ; set RHOSTS file:ipmi-623.txt ; set OUTPUT_HASHCAT_FILE ipmi-hashes.hashcat ; set THREADS ${THREADS} ; spool ipmi-dumphashes.txt ; run ; exit -y"
+    [[ $DRYRUN -eq 0 ]] && log "ipmi: msf ipmi_dumphashes (RAKP)"
+    msf_run "$dir" "ipmi-dumphashes-console.log" "$cmd"
+    if [[ $DRYRUN -eq 0 ]]; then
+      strip_ansi < "$dir/ipmi-cipher0.txt" 2>/dev/null \
+        | grep -Ei 'vulnerable' | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | dedupe_hosts >> "$dir/affected-cipher0.txt"
+      while read -r ip; do
+        [[ -n "$ip" ]] && add_finding "$ip" "623" "ipmi" "IPMI cipher-zero authentication bypass" "" "" "" "ipmi/ipmi-cipher0.txt"
+      done < <(dedupe_hosts < "$dir/affected-cipher0.txt")
+      strip_ansi < "$dir/ipmi-dumphashes.txt" 2>/dev/null \
+        | grep -Ei 'hash' | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | dedupe_hosts >> "$dir/affected-hashes.txt"
+      while read -r ip; do
+        [[ -n "$ip" ]] && add_finding "$ip" "623" "ipmi" "IPMI 2.0 RAKP password hash disclosure" "" "" "" "ipmi/ipmi-hashes.hashcat"
+      done < <(dedupe_hosts < "$dir/affected-hashes.txt")
+    fi
+  else
+    warn "ipmi: no hosts found (needs a UDP scan of port 623)"
+  fi
+  printf '%-22s : %s host(s)\n' "ipmi cipher-zero" "$(wc -l < "$dir/affected-cipher0.txt")" >> "$SUMMARY"
+  printf '%-22s : %s host(s)\n' "ipmi rakp-hashes" "$(wc -l < "$dir/affected-hashes.txt")"  >> "$SUMMARY"
+fi
+
+# --------------------------------------------------------------------------- #
+# Simple single-finding NSE checks (LDAP / MongoDB / rsync / X11 / finger)
+# --------------------------------------------------------------------------- #
+want ldap    && simple_nse_check ldap "$LDAP_PORT" "$LDAP_RE" ldap-rootdse \
+  "namingContexts|rootDomainNamingContext|supportedLDAPVersion" \
+  "LDAP anonymous bind allowed" "ldap anon-bind"
+
+want mongodb && simple_nse_check mongodb "$MONGODB_PORT" "$MONGODB_RE" "mongodb-info,mongodb-databases" \
+  "totalSize|buildInfo|Build info|ok = " \
+  "MongoDB unauthenticated access" "mongodb unauth" heur
+
+want rsync   && simple_nse_check rsync "$RSYNC_PORT" "$RSYNC_RE" rsync-list-modules \
+  "rsync-list-modules" \
+  "rsync anonymous module listing" "rsync anon" heur
+
+want x11     && simple_nse_check x11 "$X11_PORT" "$X11_RE" x11-access \
+  "access is granted|X server access is granted" \
+  "X11 open access (no authentication)" "x11 open"
+
+want finger  && simple_nse_check finger "$FINGER_PORT" "$FINGER_RE" finger \
+  "finger" \
+  "finger service exposes user information" "finger" heur
+
+# --------------------------------------------------------------------------- #
+# DNS zone transfer (AXFR) - needs the zone name(s) via DNS_ZONES
+# --------------------------------------------------------------------------- #
+if want dns; then
+  dir="$OUTDIR/dns"; mkdir -p "$dir"; : > "$dir/affected.txt"
+  if [[ -z "$DNS_ZONES" ]]; then
+    warn "dns: set DNS_ZONES='zone1,zone2' to test AXFR (needs the zone, not just an IP) - skipping"
+  elif build_hostlists "dns" "$DNS_PORT" "$DNS_RE" "$dir"; then
+    IFS=',' read -r -a _zones <<<"$DNS_ZONES"
+    for hf in "$dir"/dns-*.txt; do
+      base="$(basename "$hf")"
+      [[ "$base" =~ ^dns-([0-9]+)\.txt$ ]] || continue
+      port="${BASH_REMATCH[1]}"
+      for z in "${_zones[@]}"; do
+        [[ -n "$z" ]] || continue
+        nmap_run "$dir" -Pn "${NMAP_TO[@]}" $NMAP_EXTRA -p "$port" \
+                 --script dns-zone-transfer --script-args "dns-zone-transfer.domain=$z" \
+                 -iL "$base" -oA "dns-axfr-${z}-$port"
+        [[ $DRYRUN -eq 0 ]] || continue
+        nmap_script_hits "$dir/dns-axfr-${z}-$port.nmap" "dns-zone-transfer" | dedupe_hosts >> "$dir/affected.txt"
+        while read -r ip; do
+          [[ -n "$ip" ]] && add_finding "$ip" "$port" "dns" "DNS zone transfer (AXFR) allowed for $z" \
+            "" "$z" "" "dns/dns-axfr-${z}-$port.nmap"
+        done < <(nmap_script_hits "$dir/dns-axfr-${z}-$port.nmap" "dns-zone-transfer" | dedupe_hosts)
+      done
+    done
+    dedupe_file "$dir/affected.txt"
+  else
+    warn "dns: no hosts found"
+  fi
+  printf '%-22s : %s host(s)  [HEURISTIC]\n' "dns zone-transfer" "$(wc -l < "$dir/affected.txt")" >> "$SUMMARY"
+fi
+
+# --------------------------------------------------------------------------- #
+# Legacy r-services (exec/login/shell on 512/513/514) - presence is the finding
+# --------------------------------------------------------------------------- #
+if want rservices; then
+  dir="$OUTDIR/rservices"; mkdir -p "$dir"; : > "$dir/affected.txt"
+  awk -F'\t' -v re="$RSERVICES_RE" '$4 ~ /^open/ && $5 ~ re {print $1"\t"$2"\t"$5}' "$TCP_SVC_TSV" | sort -u > "$dir/.rsvc"
+  if [[ -s "$dir/.rsvc" ]]; then
+    while IFS=$'\t' read -r ip port name; do
+      [[ -n "$ip" ]] || continue
+      echo "$ip" >> "$dir/affected.txt"
+      [[ $DRYRUN -eq 0 ]] && add_finding "$ip" "$port" "rservices" "insecure legacy r-service exposed ($name)" \
+        "" "" "" "service scan"
+    done < "$dir/.rsvc"
+    dedupe_file "$dir/affected.txt"
+  else
+    warn "rservices: none found (needs a -T service scan)"
+  fi
+  rm -f "$dir/.rsvc"
+  printf '%-22s : %s host(s)\n' "rservices" "$(wc -l < "$dir/affected.txt")" >> "$SUMMARY"
 fi
 
 
