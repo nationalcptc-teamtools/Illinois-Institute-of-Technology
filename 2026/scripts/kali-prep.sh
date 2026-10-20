@@ -97,12 +97,28 @@ sudo chmod +x /usr/local/bin/CVE-2005-1794-check.py || true
 sudo wget https://raw.githubusercontent.com/shifty0g/ultimate-nmap-parser/master/ultimate-nmap-parser.sh -O /usr/local/bin/parse-nmap --no-check-certificate || true
 sudo chmod +x /usr/local/bin/parse-nmap || true
 
-# Ligolo-ng (pivoting tool) - proxy only
-wget https://github.com/nicocha30/ligolo-ng/releases/latest/download/ligolo-ng_proxy_0.6.2_linux_amd64.tar.gz --no-check-certificate || true
-tar -xzf ligolo-ng_proxy_0.6.2_linux_amd64.tar.gz || true
-sudo mv proxy /usr/local/bin/ligolo-proxy || true
-sudo chmod +x /usr/local/bin/ligolo-proxy || true
-rm -f ligolo-ng_*.tar.gz || true
+# Ligolo-ng (pivoting tool) - always the latest release. Asset names carry the
+# version (ligolo-ng_proxy_<ver>_linux_amd64.tar.gz), so resolve them through the
+# GitHub API instead of hardcoding one. Proxy -> /usr/local/bin/ligolo-proxy;
+# linux/windows amd64 agents are staged in ~/tools/ligolo for copying to pivots.
+LIGOLO_ASSETS=$(curl -sk https://api.github.com/repos/nicocha30/ligolo-ng/releases/latest | jq -r '.assets[].browser_download_url' 2>/dev/null)
+LIGOLO_TMP=$(mktemp -d)
+mkdir -p $HOME/tools/ligolo
+ligolo_fetch() { # <asset regex> <extract dir>
+    local url=$(echo "$LIGOLO_ASSETS" | grep -E "$1" | head -n1)
+    if [[ -z "$url" ]]; then echo "[!] ligolo-ng: no release asset matching $1"; return 1; fi
+    local f="$LIGOLO_TMP/${url##*/}"
+    wget -q "$url" -O "$f" --no-check-certificate || return 1
+    mkdir -p "$2"
+    case "$f" in
+        *.zip) python3 -m zipfile -e "$f" "$2" ;;
+        *)     tar -xzf "$f" -C "$2" ;;
+    esac
+}
+ligolo_fetch 'ligolo-ng_proxy_[^/]*_linux_amd64\.tar\.gz$' "$LIGOLO_TMP/proxy" && sudo install -m 755 "$LIGOLO_TMP/proxy/proxy" /usr/local/bin/ligolo-proxy || true
+ligolo_fetch 'ligolo-ng_agent_[^/]*_linux_amd64\.tar\.gz$' "$LIGOLO_TMP/agent-linux" && install -m 755 "$LIGOLO_TMP/agent-linux/agent" $HOME/tools/ligolo/agent || true
+ligolo_fetch 'ligolo-ng_agent_[^/]*_windows_amd64\.zip$' "$LIGOLO_TMP/agent-windows" && install -m 644 "$LIGOLO_TMP/agent-windows/agent.exe" $HOME/tools/ligolo/agent.exe || true
+rm -rf "$LIGOLO_TMP"
 
 # Github packages - essential tools only
 git -c http.sslVerify=false clone https://github.com/hsaunders1904/pyautoenv || true

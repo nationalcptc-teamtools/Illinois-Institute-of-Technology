@@ -7,7 +7,7 @@
 # oscanner, nmap ftp-anon, snmp-brute + msf snmp_login, msf tftpbrute,
 # msf redis_server + nmap redis-info, nmap ssh2-enum-algos/sshv1,
 # nmap smtp-open-relay, nmap vnc-info + msf vnc_login, showmount -e for NFS,
-# nmap smb-*/rdp-*/ldap-rootdse/mongodb-*/rsync-list-modules/x11-access/finger/
+# nmap smb-*/rdp-*/ldap-search/mongodb-*/rsync-list-modules/x11-access/finger/
 # dns-zone-transfer, and msf ipmi_cipher_zero + ipmi_dumphashes.
 #
 # FTP and Telnet are additionally flagged as cleartext-auth protocols, but only
@@ -618,8 +618,8 @@ nmap_script_hits() { # <.nmap file> <egrep pattern>
 # Generic Phase-1 NSE check for the simple one-finding services: build the host
 # list, run one --script set per port, and flag every host whose .nmap output
 # matches <pat>. Writes affected.txt + one summary line.
-simple_nse_check() { # <svc> <defport> <svc_re> <nmap-script> <pat> <finding> <label> [heuristic]
-  local svc="$1" defport="$2" re="$3" script="$4" pat="$5" finding="$6" label="$7" heur="${8:-}"
+simple_nse_check() { # <svc> <defport> <svc_re> <nmap-script> <pat> <finding> <label> [heuristic] [script-args]
+  local svc="$1" defport="$2" re="$3" script="$4" pat="$5" finding="$6" label="$7" heur="${8:-}" sargs="${9:-}"
   local dir="$OUTDIR/$svc"; mkdir -p "$dir"; : > "$dir/affected.txt"
   local hf base port ip
   if build_hostlists "$svc" "$defport" "$re" "$dir"; then
@@ -628,7 +628,7 @@ simple_nse_check() { # <svc> <defport> <svc_re> <nmap-script> <pat> <finding> <l
       [[ "$base" =~ ^${svc}-([0-9]+)\.txt$ ]] || continue
       port="${BASH_REMATCH[1]}"
       nmap_run "$dir" -Pn "${NMAP_TO[@]}" $NMAP_EXTRA -p "$port" --script "$script" \
-               -iL "$base" -oA "$svc-$port"
+               ${sargs:+--script-args "$sargs"} -iL "$base" -oA "$svc-$port"
       [[ $DRYRUN -eq 0 ]] || continue
       nmap_script_hits "$dir/$svc-$port.nmap" "$pat" | dedupe_hosts >> "$dir/affected.txt"
       while read -r ip; do
@@ -1487,9 +1487,13 @@ fi
 # --------------------------------------------------------------------------- #
 # Simple single-finding NSE checks (LDAP / MongoDB / rsync / X11 / finger)
 # --------------------------------------------------------------------------- #
-want ldap    && simple_nse_check ldap "$LDAP_PORT" "$LDAP_RE" ldap-rootdse \
-  "namingContexts|rootDomainNamingContext|supportedLDAPVersion" \
-  "LDAP rootDSE readable anonymously" "ldap rootdse"
+# A readable rootDSE is normal (AD allows it by design), so ldap-rootdse is only
+# kept as context. The finding is ldap-search (anonymous bind, no creds)
+# returning at least one directory object - i.e. a "dn:" line in its output.
+want ldap    && simple_nse_check ldap "$LDAP_PORT" "$LDAP_RE" ldap-rootdse,ldap-search \
+  "[|]_?[[:space:]]+dn: " \
+  "LDAP anonymous search returns directory objects" "ldap anon-search" "" \
+  "ldap.maxobjects=10"
 
 want mongodb && simple_nse_check mongodb "$MONGODB_PORT" "$MONGODB_RE" "mongodb-info,mongodb-databases" \
   "totalSize|buildInfo|Build info|ok = " \

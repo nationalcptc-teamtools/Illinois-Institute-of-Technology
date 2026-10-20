@@ -54,7 +54,8 @@ What it does:
 | pipx | NetExec, Coercer, pre2k, sccmhunter, impacket (with the `pyOpenSSL==24.0.0` fix for `ntlmrelayx --shadowcredentials`), certipy-ad, modbus_cli, bloodhound-python, pypykatz |
 | Go | Latest official Go toolchain in `/usr/local/go`, plus `gowitness` and `goexec` |
 | Ruby | `evil-winrm`, `winrm`, `winrm-fs` |
-| `/usr/local/bin` | `petitpotam`, `dfscoerce`, `shadowcoerce`, `printerbug`, `cheeseounce`, `kerbrute`, `rdp-sec-check.pl`, `CVE-2005-1794-check.py`, `parse-nmap`, `ligolo-proxy` |
+| `/usr/local/bin` | `petitpotam`, `dfscoerce`, `shadowcoerce`, `printerbug`, `cheeseounce`, `kerbrute`, `rdp-sec-check.pl`, `CVE-2005-1794-check.py`, `parse-nmap`, `ligolo-proxy` (latest ligolo-ng release, resolved through the GitHub API) |
+| `~/tools/ligolo` | ligolo-ng `agent` (linux amd64) and `agent.exe` (windows amd64), from the same release as the proxy, ready to copy to pivot hosts |
 | `~/tools` | Clones of PKINITtools, krbrelayx, pywhisker, noPac, statistically-likely-usernames and pyautoenv. Each tool with a `requirements.txt` gets its own `.venv`, which pyautoenv activates automatically when you `cd` into it. |
 | Shell | Prompt that shows the current `tun0`/`eth0` IP, aliases (`ll`, `nse`, `serve`, `myip`), `clear -x` |
 | Logging | Every shell command (user and root) is logged through rsyslog `local6` to **`/var/log/commands.log`**, which is useful for the report's activity timeline |
@@ -116,13 +117,13 @@ PDF structure:
 3. **Table of Contents**
 4. **Executive Summary**: overview, key strengths, summary of findings (counts are generated), overall risk, opportunities for improvement
 5. **Technical Summary**: scope, network topology, testing methodology, attack path analysis, strategic recommendations
-6. **Security Vulnerabilities Overview**: table of all findings with their CVSS scores
-7. **Technical Findings**: grouped Critical → High → Medium → Low, each with its risk level, CVSS score and vector, affected systems and quick fix, followed by the security overview, technical analysis, business impact, proof of exploitation, remediation and references
+6. **Security Vulnerabilities Overview**: table of all findings with their risk level and CVSS score
+7. **Technical Findings**: grouped Critical → High → Medium → Low → Informational, each with its risk level, CVSS score and vector, affected systems and quick fix, followed by the security overview, technical analysis, business impact, proof of exploitation, remediation and references
 8. **Appendix**: severity scale, tools and technologies, assessment artifacts / cleanup log
 
 Many report sections ship with **`TODO`** placeholder text (executive summary, scope, strengths, overall risk, improvement, topology, attack path). Search the rendered PDF for "TODO" before you submit.
 
-> **Severity in the PDF comes from CVSS, not from the `severity` field.** Findings are grouped and badged by the level of their CVSS score. See [docs/findings.md](docs/findings.md#how-severity-is-shown-in-the-report).
+> **The risk level in the PDF comes from each finding's `severity` field** (`info` to `critical`). The PDF uses the CVSS level only when `severity` is empty, and prints the CVSS score and vector as a supporting reference. Findings are ordered by severity, then CVSS score, then title. See [docs/findings.md](docs/findings.md#how-severity-is-shown-in-the-report).
 
 ### Finding templates
 
@@ -165,5 +166,5 @@ The templates fit any design whose finding field IDs and types match (`title`, `
 2. Run the Nmap port, service and UDP scans of the scope (see [Producing the input scans](docs/service-audit.md#producing-the-input-scans)).
 3. Run `service-audit.sh` against them (`-x` first) and work through `summary.txt` / `findings.csv`.
 4. Verify each hit manually. Heuristic checks are flagged in `summary.txt`.
-5. In SysReptor, add each confirmed issue from its template (the [suggested template](docs/service-audit.md#run-order-and-checks) column maps audit results to templates), then fill in **Affected Components** and **Proof of Exploitation** and adjust the CVSS vector.
+5. In SysReptor, add each confirmed issue from its template (the [suggested template](docs/service-audit.md#run-order-and-checks) column maps audit results to templates), then fill in **Affected Components** and **Proof of Exploitation**, and confirm the **Severity** (it drives the report) and the CVSS vector.
 6. Replace the `TODO` text in the report sections and use `/var/log/commands.log` for the artifacts and cleanup log.

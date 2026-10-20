@@ -143,7 +143,7 @@ The **Suggested template** column names the [finding template](findings.md) that
 | vnc | `vnc-info` NSE, then msf `vnc_login` (blank passwords included) | VNC no authentication; insecure VNC security type; weak/default VNC password | `affected-noauth.txt`, `affected-weaksectype.txt`, `affected-defaultpass.txt` | VNC Unauthenticated Access; Cleartext Authentication: VNC |
 | smb | `smb-protocols,smb-security-mode,smb2-security-mode,smb-enum-shares` NSE. **No credential spray.** | SMBv1 enabled; SMB message signing not required; null/anonymous SMB session **[heuristic]** | `affected-smbv1.txt`, `affected-nosigning.txt`, `affected-nullsession.txt` | SMB Signing Not Enforced; SMB Null or Guest Session - Share Access / Object Enumeration |
 | rdp | `rdp-enum-encryption,rdp-ntlm-info` NSE; msf BlueKeep scanner only if `RDP_BLUEKEEP=1` | RDP legacy security layer offered (NLA not enforced); BlueKeep vulnerable | `affected-weaksec.txt`, `affected-bluekeep.txt` | Outdated Software (BlueKeep) |
-| ldap | `ldap-rootdse` NSE | LDAP anonymous bind allowed | `affected.txt` | LDAP Anonymous Bind (see [verification](#heuristic-results-and-verification)) |
+| ldap | `ldap-rootdse,ldap-search` NSE (`ldap.maxobjects=10`); flagged only if the anonymous search returns a `dn:` entry | LDAP anonymous search returns directory objects | `affected.txt` | LDAP Anonymous Bind |
 | mongodb | `mongodb-info,mongodb-databases` NSE | MongoDB unauthenticated access **[heuristic]** | `affected.txt` | *(no dedicated template)* |
 | rsync | `rsync-list-modules` NSE | rsync anonymous module listing **[heuristic]** | `affected.txt` | Unauthenticated Access: Sensitive Files (if modules are readable) |
 | ipmi | msf `ipmi_cipher_zero` and `ipmi_dumphashes` (writes `ipmi-hashes.hashcat`) | IPMI cipher-zero authentication bypass; IPMI 2.0 RAKP password hash disclosure | `affected-cipher0.txt`, `affected-hashes.txt` | Insecure Protocol: IPMI Version 2.0 |
@@ -225,7 +225,7 @@ Set these on the command line (after `sudo`) to override the defaults.
 | `MSF_BATCH` | `0` | Same as `-b` |
 | `ORACLE_MAX_CAP` | `1800` | Ceiling on oscanner's derived run-time cap (seconds) |
 | `REDIS_PASS_FILE` | – | Password list for `redis_login`. If unset, the script uses a SecLists `redis-betterdefaultpasslist.txt` if one exists, then SecLists' top-100 common passwords, then a 12-entry built-in list. |
-| `SSH_WEAK_KEX` | `sha1\|group1` | Regex of key-exchange algorithms to flag |
+| `SSH_WEAK_KEX` | `sha1|group1-` |\|group1` | Regex of key-exchange algorithms to flag |
 | `SSH_WEAK_HOSTKEY` | `^ssh-dss$\|^ssh-rsa$\|-cert-v00@` | Regex of host-key algorithms to flag |
 | `SSH_WEAK_CIPHER` | `-cbc\|arcfour\|^3des\|blowfish\|cast128\|^none$\|^rijndael` | Regex of ciphers to flag |
 | `SSH_WEAK_MAC` | `hmac-md5\|hmac-sha1\|-96\|umac-64` | Regex of MACs to flag |
@@ -373,7 +373,7 @@ Some checks match loose patterns in tool output, and their results need a manual
 
 - **Tagged `[HEURISTIC]` in `summary.txt`**: tftp, oracle, smb null-session, mongodb unauth, rsync anon, finger, dns zone-transfer. Their findings say "HEURISTIC - verify" or depend on output that varies between versions. For mongodb, rsync, finger and dns, the match is essentially "the NSE script returned output", so read the `.nmap` file.
 - **SNMP without `snmpget`**: cleartext v1/v2c is inferred from the service-scan version string only.
-- **LDAP anonymous bind**: the check flags any host whose rootDSE is readable without credentials. Active Directory domain controllers allow that by design, so expect every DC to show up. Before you use the *LDAP Anonymous Bind* template, confirm that an anonymous bind can actually query the directory, for example:
+- **LDAP anonymous search**: a readable rootDSE alone (the default on AD) is not flagged. A host is reported only when `ldap-search` returns directory objects without credentials. You can reproduce it for the report with:
 
   ```bash
   ldapsearch -x -H ldap://<dc-ip> -b "DC=example,DC=local" "(objectClass=user)" sAMAccountName

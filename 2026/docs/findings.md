@@ -24,8 +24,8 @@ Every template fills in the finding fields that the design defines. The last col
 | Field ID | Label | Type | Required | Pre-filled in templates? | In the PDF as |
 |---|---|---|---|---|---|
 | `title` | Title | string | Yes | Yes | Finding heading |
-| `severity` | Severity | enum: `low` `medium` `high` `critical` | Yes | Yes | *Not rendered* (see [below](#how-severity-is-shown-in-the-report)) |
-| `cvss` | CVSS | CVSS vector | Yes | Yes | Risk Level, CVSS Score, CVSS Vector |
+| `severity` | Severity | enum: `info` `low` `medium` `high` `critical` | Yes | Yes (140 of 141) | Risk Level, badge, severity section and counts (see [below](#how-severity-is-shown-in-the-report)) |
+| `cvss` | CVSS | CVSS vector | Yes | Yes | CVSS Score, CVSS Vector |
 | `affected_components` | Affected Components | list of strings | Yes | **No, always empty** | Affected Systems |
 | `summary` | Summary | markdown | Yes | Yes | Security Overview |
 | `short_recommendation` | Short Recommendation | string | Yes | Yes | Quick Fix |
@@ -41,6 +41,7 @@ What to fill in when you use a template:
 
 - **`affected_components`**: one host, IP, URL, account or component per list item. Every template leaves this empty.
 - **`exploit`**: the evidence from this engagement (host or endpoint, prerequisites, steps, screenshots, result). Every template leaves this empty, so you start from the design's default skeleton (`Affected Host / Endpoint`, `Prerequisites / Access`, `Validation` ...).
+- **`severity`**: set the risk level you are reporting. This is what the PDF shows. It doesn't have to match the CVSS level.
 - **`cvss`**: adjust the vector if what you validated differs from the template's assumptions, for example if authentication was required or the impact was lower. The template vectors are sensible defaults, not measurements.
 - **`summary` / `impact`**: tailor them to Butters Family Farm where it adds value.
 
@@ -48,11 +49,13 @@ What to fill in when you use a template:
 
 ## How severity is shown in the report
 
-The PDF report template **does not use the `severity` field**. The finding badges, the "Risk Level" row and the Critical/High/Medium/Low sections all come from the CVSS score (`cvss.level`). Findings are sorted by CVSS score (highest first), then by title.
+The PDF takes each finding's risk level from the **`severity` field**. That covers the badge, the "Risk Level" row, the Critical / High / Medium / Low / Informational section it appears in, and the counts in the Summary of Findings table. This follows the rule SysReptor itself uses for its finding statistics. Only when `severity` is empty does the PDF fall back to the level of the CVSS score. The CVSS score and vector are still printed with each finding as a supporting reference.
 
-Right now every template's `severity` matches the level of its CVSS vector. If you change one, change the other too, or the SysReptor UI and the PDF will disagree.
+Findings are ordered by severity (critical first), then by CVSS score (highest first), then by title. This applies to both SysReptor's finding list and the tables and sections in the PDF.
 
-CVSS level bands: **Critical** 9.0–10.0 · **High** 7.0–8.9 · **Medium** 4.0–6.9 · **Low** 0.1–3.9.
+`info` is a valid severity, for findings that belong in the Informational section. Right now every template's `severity` matches the level of its CVSS vector, but you can now raise or lower a finding's severity without editing its CVSS vector.
+
+CVSS level bands (used only for the fallback): **Critical** 9.0–10.0 · **High** 7.0–8.9 · **Medium** 4.0–6.9 · **Low** 0.1–3.9 · **Info** 0.0.
 
 ## CVSS vectors in use
 
