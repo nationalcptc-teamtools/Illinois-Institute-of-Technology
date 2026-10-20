@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# svc-audit.sh - Default-credential / weak-auth sweep for common services
+# service-audit.sh - Default-credential / weak-auth sweep for common services
 #
 # Parses Nmap TCP port scans, TCP service scans and UDP port scans, builds
 # per-service / per-port host lists, then runs Metasploit login scanners,
@@ -558,7 +558,7 @@ record_redis_creds() { # <spoolfile> <port>
     if [[ "$cred" == *:* ]]; then user="${cred%%:*}"; pass="${cred#*:}"
     else user=""; pass="$cred"; fi
     add_finding "$ip" "$port" "redis" "weak/default AUTH password" \
-                "$user" "$pass" "read/write" "${f#$OUTDIR/}"
+                "$user" "$pass" "read-write" "${f#$OUTDIR/}"
   done < <(msf_success_lines "$f")
 }
 
@@ -734,7 +734,7 @@ if want nfs; then
     warn "nfs: no hosts found"
   fi
   printf '%-22s : %s host(s)\n' "nfs showmount"  "$(wc -l < "$dir/affected-showmount.txt")" >> "$SUMMARY"
-  printf '%-22s : %s host(s)\n' "nfs PUBLIC mount" "$(wc -l < "$dir/affected-public.txt")"  >> "$SUMMARY"
+  printf '%-22s : %s host(s)\n' "nfs public mount" "$(wc -l < "$dir/affected-public.txt")"  >> "$SUMMARY"
 fi
 
 # --------------------------------------------------------------------------- #
@@ -769,7 +769,7 @@ if want redis; then
         cat "$dir/.hits-$port" >> "$dir/affected-unauth.txt"
         while read -r ip; do
           [[ -n "$ip" ]] && add_finding "$ip" "$port" "redis" \
-            "unauthenticated access (no AUTH)" "" "" "read/write" \
+            "unauthenticated access (no AUTH)" "" "" "read-write" \
             "redis/redis-${port}-unauth.txt"
         done < "$dir/.hits-$port"
         rm -f "$dir/.hits-$port"
@@ -865,7 +865,7 @@ if want snmp; then
     warn "snmp: no hosts found"
   fi
   printf '%-22s : %s host(s)\n' "snmp read-only"  "$(wc -l < "$dir/affected-readonly.txt")"  >> "$SUMMARY"
-  printf '%-22s : %s host(s)\n' "snmp READ-WRITE" "$(wc -l < "$dir/affected-readwrite.txt")" >> "$SUMMARY"
+  printf '%-22s : %s host(s)\n' "snmp read-write" "$(wc -l < "$dir/affected-readwrite.txt")" >> "$SUMMARY"
 fi
 
 # --------------------------------------------------------------------------- #
