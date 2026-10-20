@@ -76,7 +76,7 @@ Set-ExecutionPolicy Bypass -Scope Process -Force; .\windows-prep.ps1
 | Area | Details |
 |---|---|
 | `C:\Tools` | Rubeus, Certify, Seatbelt, SharpGPOAbuse, SharpSCCM, Whisker, SharpDPAPI, SigmaPotato, Snaffler, mimikatz, PowerUpSQL, PowerView, SharpHound.ps1, dsinternalparser.py, PingCastle |
-| Windows features | RSAT AD tools (`Install-WindowsFeature` on Server, `Add-WindowsCapability` on client) |
+| Windows features | RSAT AD tools and GPMC / `GroupPolicy` module (`Install-WindowsFeature` on Server, `Add-WindowsCapability` on client) |
 | PowerShell | DSInternals module (from the PowerShell Gallery) |
 | Applications | Notepad++, Python 3 (latest, on PATH), MobaXterm Home |
 

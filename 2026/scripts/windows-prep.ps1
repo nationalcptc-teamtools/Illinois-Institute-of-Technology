@@ -106,15 +106,18 @@ Invoke-Step "Install PingCastle (latest)" {
     Remove-Item -Path "$Tools\PingCastle.zip" -Force -ErrorAction SilentlyContinue
 }
 
-# ---- RSAT (AD PowerShell) - path depends on client vs server ----------------
+# ---- RSAT (AD + GroupPolicy PowerShell) - path depends on client vs server --
 if ($isServer) {
-    Invoke-Step "Install RSAT AD features (Windows Server)" {
-        $feat = Get-WindowsFeature -Name RSAT-AD-PowerShell, RSAT-ADDS -ErrorAction Stop | Where-Object InstallState -eq 'Available'
+    Invoke-Step "Install RSAT AD + GPMC features (Windows Server)" {
+        $feat = Get-WindowsFeature -Name RSAT-AD-PowerShell, RSAT-ADDS, GPMC -ErrorAction Stop | Where-Object InstallState -eq 'Available'
         if ($feat) { $feat | Install-WindowsFeature -ErrorAction Stop | Out-Null }
     }
 } else {
-    Invoke-Step "Install RSAT AD capabilities (Windows client)" {
-        $caps = Get-WindowsCapability -Name RSAT.ActiveDirectory* -Online -ErrorAction Stop | Where-Object State -ne 'Installed'
+    Invoke-Step "Install RSAT AD + Group Policy capabilities (Windows client)" {
+        # -Name takes a single wildcard, so query each capability family separately
+        $caps = @('Rsat.ActiveDirectory*', 'Rsat.GroupPolicy.Management.Tools*') |
+            ForEach-Object { Get-WindowsCapability -Name $_ -Online -ErrorAction Stop } |
+            Where-Object State -ne 'Installed'
         if ($caps) { $caps | Add-WindowsCapability -Online -ErrorAction Stop | Out-Null }
     }
 }
