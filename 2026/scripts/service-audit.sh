@@ -5,7 +5,8 @@
 # Parses Nmap TCP port scans, TCP service scans and UDP port scans, builds
 # per-service / per-port host lists, then runs Metasploit login scanners,
 # oscanner, nmap ftp-anon, snmp-brute + msf snmp_login, msf tftpbrute,
-# msf redis_server + nmap redis-info, and showmount -e for NFS.
+# msf redis_server + nmap redis-info, nmap ssh2-enum-algos/sshv1, and
+# showmount -e for NFS.
 #
 # FTP and Telnet are additionally flagged as cleartext-auth protocols, but only
 # where the TCP service scan (-T) confirms the protocol by name - never on a
@@ -56,6 +57,15 @@ MSF_CREATE_SESSION="${MSF_CREATE_SESSION:-false}"    # ssh/telnet: open shells o
 
 ORACLE_MAX_CAP="${ORACLE_MAX_CAP:-1800}"      # ceiling on the derived oscanner cap
 NMAP_EXTRA="${NMAP_EXTRA:-}"
+
+# SSH weak-algorithm denylists - extended regex per category, matched against
+# each algorithm ssh2-enum-algos reports. ssh-rsa (SHA-1 sig) and hmac-sha1 are
+# deprecated-but-common and deliberately flagged; override to taste.
+SSH_WEAK_KEX="${SSH_WEAK_KEX:-sha1|group1}"
+SSH_WEAK_HOSTKEY="${SSH_WEAK_HOSTKEY:-^ssh-dss$|^ssh-rsa$|-cert-v00@}"
+SSH_WEAK_CIPHER="${SSH_WEAK_CIPHER:--cbc|arcfour|^3des|blowfish|cast128|^none$|^rijndael}"
+SSH_WEAK_MAC="${SSH_WEAK_MAC:-hmac-md5|hmac-sha1|-96|umac-64}"
+
 OUTDIR="."
 DRYRUN=0
 UDP_INCLUDE_FILTERED=0
@@ -170,14 +180,15 @@ Options:
   -h        Help
 
 Run order (fastest / most bounded first):
-  1 nfs -> 2 redis -> 3 snmp -> 4 tftp -> 5 oracle
-  6 ftp -> 7 mysql -> 8 mssql -> 9 postgres -> 10 telnet -> 11 ssh
+  1 nfs -> 2 redis -> 3 snmp -> 4 tftp -> 5 oracle -> 6 ssh-crypto
+  7 ftp -> 8 mysql -> 9 mssql -> 10 postgres -> 11 telnet -> 12 ssh
 
 Env overrides: SECLISTS_DIR THREADS CONNECT_TIMEOUT NMAP_HOST_TIMEOUT
                MSF_TIMEOUT MSF_TIMEOUT_SSH MSF_TIMEOUT_TELNET (per-service caps)
                MSF_MAX_MINUTES MSF_MAX_GUESSES MSF_MAX_GUESSES_PER_USER
                BRUTEFORCE_SPEED MSF_STOP_ON_SUCCESS MSF_VERBOSE
                MSF_CREATE_SESSION ORACLE_MAX_CAP NMAP_EXTRA REDIS_PASS_FILE
+               SSH_WEAK_KEX SSH_WEAK_HOSTKEY SSH_WEAK_CIPHER SSH_WEAK_MAC
 
 Outputs: <service>/<service>-<port>.txt, <service>/affected*.txt,
          run.log, findings.csv, summary.txt
@@ -613,6 +624,85 @@ record_cleartext() { # <svc> <svc_name_regex> <dir>
 }
 
 # --------------------------------------------------------------------------- #
+# SSH weak crypto + SSHv1 (cheap NSE - runs in Phase 1)
+# --------------------------------------------------------------------------- #
+# ssh2-enum-algos only *lists* the offered algorithms; we judge weak/strong
+# against the SSH_WEAK_* denylists here. SSHv1 is flagged from the sshv1 script
+# OR a '(protocol 1.x)' banner (1.99 = still allows v1 alongside v2).
+ssh_crypto_audit() {
+  local dir="$OUTDIR/ssh"; mkdir -p "$dir"
+  : > "$dir/affected-weakalgos.txt"; : > "$dir/affected-sshv1.txt"
+  if ! build_hostlists "ssh" "22" "^ssh$" "$dir"; then
+    warn "ssh: no hosts for crypto audit"
+    printf '%-22s : %s host(s)\n' "ssh weak-algos" 0 >> "$SUMMARY"
+    printf '%-22s : %s host(s)\n' "ssh sshv1"      0 >> "$SUMMARY"
+    return 0
+  fi
+  local hf base port nmapf key ip cat algo re lbl
+  for hf in "$dir"/ssh-*.txt; do
+    base="$(basename "$hf")"
+    [[ "$base" =~ ^ssh-([0-9]+)\.txt$ ]] || continue
+    port="${BASH_REMATCH[1]}"
+    nmap_run "$dir" -Pn "${NMAP_TO[@]}" $NMAP_EXTRA -sV -p "$port" \
+             --script ssh2-enum-algos,sshv1 -iL "$base" -oA "ssh-algos-$port"
+    [[ $DRYRUN -eq 0 ]] || continue
+    nmapf="$dir/ssh-algos-$port.nmap"
+    [[ -r "$nmapf" ]] || continue
+
+    # weak algorithms, grouped one finding per host per category
+    unset weak; declare -A weak
+    while IFS=$'\t' read -r ip cat algo; do
+      case "$cat" in
+        kex_algorithms)             re="$SSH_WEAK_KEX";     lbl="key exchange" ;;
+        server_host_key_algorithms) re="$SSH_WEAK_HOSTKEY"; lbl="host key" ;;
+        encryption_algorithms)      re="$SSH_WEAK_CIPHER";  lbl="cipher" ;;
+        mac_algorithms)             re="$SSH_WEAK_MAC";     lbl="MAC" ;;
+        *) continue ;;
+      esac
+      grep -qE -- "$re" <<<"$algo" || continue
+      key="$ip|$lbl"
+      weak["$key"]+="${weak[$key]:+, }$algo"
+    done < <(awk -v OFS='\t' '
+      function clean(s){ sub(/^[[:space:]]*\|_?[[:space:]]*/, "", s); return s }
+      /^Nmap scan report for/ { ip=$NF; gsub(/[()]/, "", ip); cat=""; next }
+      /^\|/ {
+        c = clean($0)
+        if (c ~ /^(kex_algorithms|server_host_key_algorithms|encryption_algorithms|mac_algorithms|compression_algorithms):/) {
+          cat=c; sub(/:.*/, "", cat); next
+        }
+        if (cat != "" && ip != "" && c ~ /^[A-Za-z0-9]/) { sub(/[[:space:]].*$/, "", c); if (c != "") print ip, cat, c }
+        next
+      }
+      { cat="" }
+    ' "$nmapf")
+
+    for key in "${!weak[@]}"; do
+      ip="${key%%|*}"; lbl="${key#*|}"
+      echo "$ip" >> "$dir/affected-weakalgos.txt"
+      add_finding "$ip" "$port" "ssh" "weak SSH $lbl offered: ${weak[$key]}" \
+                  "" "" "" "ssh/ssh-algos-$port.nmap"
+    done
+
+    # SSHv1: sshv1 script hit OR a 'protocol 1.x' banner from -sV
+    {
+      nmap_script_hits "$nmapf" "supports SSHv1"
+      awk '/^Nmap scan report for/ { ip=$NF; gsub(/[()]/, "", ip) }
+           /^[0-9]+\/tcp.*ssh.*\(protocol 1\./ { if (ip) print ip }' "$nmapf"
+    } | dedupe_hosts > "$dir/.sshv1-$port"
+    while read -r ip; do
+      [[ -n "$ip" ]] || continue
+      echo "$ip" >> "$dir/affected-sshv1.txt"
+      add_finding "$ip" "$port" "ssh" "SSHv1 (protocol 1) supported" "" "" "" "ssh/ssh-algos-$port.nmap"
+    done < "$dir/.sshv1-$port"
+    rm -f "$dir/.sshv1-$port"
+  done
+  dedupe_file "$dir/affected-weakalgos.txt"
+  dedupe_file "$dir/affected-sshv1.txt"
+  printf '%-22s : %s host(s)\n' "ssh weak-algos" "$(wc -l < "$dir/affected-weakalgos.txt")" >> "$SUMMARY"
+  printf '%-22s : %s host(s)\n' "ssh sshv1"      "$(wc -l < "$dir/affected-sshv1.txt")"      >> "$SUMMARY"
+}
+
+# --------------------------------------------------------------------------- #
 # TCP credential services (definition only - called by the dispatcher)
 # --------------------------------------------------------------------------- #
 # run_tcp_creds <svc-name>...  - cleartext flag first (ftp/telnet), then creds.
@@ -700,7 +790,7 @@ run_tcp_creds() {
 #   nmap NSE scans are bounded by --host-timeout; showmount and the
 #   redis/snmp probes are one or a few connects per host.
 # --------------------------------------------------------------------------- #
-phase "PHASE 1: nfs / redis / snmp / tftp / oracle"
+phase "PHASE 1: nfs / redis / snmp / tftp / oracle / ssh-crypto"
 
 # --------------------------------------------------------------------------- #
 # NFS (showmount -e)
@@ -1029,6 +1119,11 @@ if want oracle; then
   fi
   printf '%-22s : %s host(s)  [HEURISTIC]\n' "oracle" "$(wc -l < "$dir/affected.txt")" >> "$SUMMARY"
 fi
+
+# --------------------------------------------------------------------------- #
+# SSH weak crypto + SSHv1 (cheap NSE, no credential guessing)
+# --------------------------------------------------------------------------- #
+want ssh && ssh_crypto_audit
 
 
 # --------------------------------------------------------------------------- #
