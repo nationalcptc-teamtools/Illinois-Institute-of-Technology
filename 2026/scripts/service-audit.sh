@@ -7,6 +7,11 @@
 # oscanner, nmap ftp-anon, snmp-brute + msf snmp_login, msf tftpbrute,
 # msf redis_server + nmap redis-info, and showmount -e for NFS.
 #
+# FTP and Telnet are additionally flagged as cleartext-auth protocols, but only
+# where the TCP service scan (-T) confirms the protocol by name - never on a
+# bare open-port match. SNMP v1/v2c (cleartext community, no v3 auth/privacy)
+# is flagged by a direct snmpget probe with a discovered community.
+#
 # Run order is cheapest-first: nmap NSE scans and single-connect probes run
 # before any credential guessing, and telnet/ssh sprays run dead last, so a
 # run you have to abort still leaves you with everything else on disk.
@@ -228,7 +233,7 @@ for s in "${_sel[@]}"; do
   [[ ",$ALL_SERVICES," == *",$s,"* ]] || die "Unknown service '$s' in -S. Valid: $ALL_SERVICES"
 done
 
-for bin in nmap msfconsole oscanner showmount; do
+for bin in nmap msfconsole oscanner showmount snmpget; do
   command -v "$bin" >/dev/null || warn "$bin not in PATH - related steps will be skipped"
 done
 [[ -d "$SECLISTS_DIR" ]] || warn "SecLists dir missing: $SECLISTS_DIR  (apt install seclists)"
@@ -584,9 +589,33 @@ is_public_client() {
 }
 
 # --------------------------------------------------------------------------- #
+# Cleartext-protocol finding (FTP / Telnet)
+# --------------------------------------------------------------------------- #
+# FTP and Telnet carry credentials in cleartext. Flag that as a finding in its
+# own right - but ONLY where the TCP *service* scan (-T) positively identified
+# the protocol by name. A port scan alone cannot confirm what is listening, so
+# a bare open-port match is not enough.
+confirmed_by_svcscan() { # <svc_name_regex> -> "ip<TAB>port" per confirmed host
+  awk -F'\t' -v re="$1" '$4 ~ /^open/ && $5 ~ re {print $1"\t"$2}' "$TCP_SVC_TSV" | sort -u
+}
+
+record_cleartext() { # <svc> <svc_name_regex> <dir>
+  local svc="$1" re="$2" dir="$3" ip port
+  local out="$dir/affected-cleartext.txt"; : > "$out"
+  while IFS=$'\t' read -r ip port; do
+    [[ -n "$ip" ]] || continue
+    echo "$ip" >> "$out"
+    [[ $DRYRUN -eq 0 ]] && add_finding "$ip" "$port" "$svc" \
+      "cleartext authentication protocol" "" "" "" "service scan confirmed $svc on port $port"
+  done < <(confirmed_by_svcscan "$re")
+  dedupe_file "$out"
+  printf '%-22s : %s host(s)\n' "$svc cleartext" "$(wc -l < "$out")" >> "$SUMMARY"
+}
+
+# --------------------------------------------------------------------------- #
 # TCP credential services (definition only - called by the dispatcher)
 # --------------------------------------------------------------------------- #
-# run_tcp_creds <svc-name>...  - body is unchanged from the original loop.
+# run_tcp_creds <svc-name>...  - cleartext flag first (ftp/telnet), then creds.
 run_tcp_creds() {
   local e entry svc mod defport re dir passlist pl_base hf base port target aip name
   for name in "$@"; do
@@ -597,6 +626,7 @@ run_tcp_creds() {
   want "$svc" || continue
 
   dir="$OUTDIR/$svc"; mkdir -p "$dir"
+  case "$svc" in ftp|telnet) record_cleartext "$svc" "$re" "$dir" ;; esac
   if ! build_hostlists "$svc" "$defport" "$re" "$dir"; then
     warn "$svc: no hosts found"
     if [[ "$svc" == "ftp" ]]; then : > "$dir/affected-defaultpass.txt"; : > "$dir/affected-anonymous.txt"
@@ -810,6 +840,7 @@ fi
 if want snmp; then
   dir="$OUTDIR/snmp"; mkdir -p "$dir"
   : > "$dir/affected-readonly.txt"; : > "$dir/affected-readwrite.txt"; : > "$dir/affected.txt"
+  : > "$dir/affected-cleartext.txt"; : > "$dir/.comms"
   {
     awk -F'\t' '$2=="161" {print $1}' "$UDP_TSV"
     for l in "${SNMP_LISTS[@]}"; do
@@ -832,6 +863,7 @@ if want snmp; then
       # [+] 10.0.0.1:161 - Login Successful: public (Access level: read-only); Proof ...
       while IFS='|' read -r ip port comm access; do
         [[ -n "$ip" ]] || continue
+        printf '%s\t%s\n' "$ip" "$comm" >> "$dir/.comms"
         case "$access" in
           *read-write*|*read_write*|*READ-WRITE*|*rw*)
             echo "$ip" >> "$dir/affected-readwrite.txt"
@@ -860,12 +892,64 @@ if want snmp; then
         mv "$dir/.ro.tmp" "$dir/affected-readonly.txt"
       fi
       cat "$dir/affected-readonly.txt" "$dir/affected-readwrite.txt" | dedupe_hosts > "$dir/affected.txt"
+
+      # ---- Cleartext SNMP (v1 / v2c) ---------------------------------------
+      # SNMPv1 and v2c both send the community string in cleartext (only v3
+      # adds auth/privacy), so both are the same finding. The accurate test is
+      # a direct GET with a community we already found: whichever version the
+      # agent answers is enabled. Fall back to the Nmap service-scan version
+      # string when net-snmp (snmpget) is unavailable.
+      : > "$dir/snmp-cleartext-confirm.txt"
+      # add the communities nmap's snmp-brute found (msf ones captured above)
+      awk '
+        /^Nmap scan report for/ { ip=$NF; gsub(/[()]/,"",ip) }
+        /- *Valid credentials/ {
+          c=$0; sub(/[[:space:]]*-[[:space:]]*Valid credentials.*/,"",c)
+          sub(/^[|_[:space:]]+/,"",c)
+          if (ip!="" && c!="") print ip"\t"c
+        }' "$dir/snmp-brute.nmap" 2>/dev/null >> "$dir/.comms"
+
+      if command -v snmpget >/dev/null; then
+        sort -u "$dir/.comms" 2>/dev/null | while IFS=$'\t' read -r ip comm; do
+          [[ -n "$ip" && -n "$comm" ]] || continue
+          grep -qxF "$ip" "$dir/affected-cleartext.txt" 2>/dev/null && continue
+          printf '===== %s (community: %s) =====\n' "$ip" "$comm" >> "$dir/snmp-cleartext-confirm.txt"
+          vers=""
+          for v in 1 2c; do
+            if res="$(timeout --foreground "${CONNECT_TIMEOUT}s" \
+                      snmpget -v"$v" -c "$comm" -r 0 -t "$CONNECT_TIMEOUT" -On \
+                              "$ip" 1.3.6.1.2.1.1.1.0 2>&1)" && [[ -n "$res" ]]; then
+              printf '[v%s] %s\n' "$v" "$res" >> "$dir/snmp-cleartext-confirm.txt"
+              vers+="${vers:+, }v$v"
+            fi
+          done
+          if [[ -n "$vers" ]]; then
+            echo "$ip" >> "$dir/affected-cleartext.txt"
+            add_finding "$ip" "161" "snmp" "cleartext SNMP community ($vers)" \
+                        "" "$comm" "confirmed" "snmp/snmp-cleartext-confirm.txt"
+          fi
+        done
+      else
+        warn "snmp: snmpget not found (apt install snmp) - cleartext v1/v2c via version string only (heuristic)"
+      fi
+
+      # heuristic fallback: a UDP service scan that banners SNMPv1 / SNMPv2c
+      while read -r ip; do
+        [[ -n "$ip" ]] || continue
+        grep -qxF "$ip" "$dir/affected-cleartext.txt" 2>/dev/null && continue
+        echo "$ip" >> "$dir/affected-cleartext.txt"
+        add_finding "$ip" "161" "snmp" "cleartext SNMP in service-scan version string (HEURISTIC - verify)" \
+                    "" "" "" "service scan version string"
+      done < <(awk -F'\t' '$2=="161" && $6 ~ /SNMPv1|SNMPv2/ {print $1}' "$UDP_TSV" | dedupe_hosts)
+
+      dedupe_file "$dir/affected-cleartext.txt"
     fi
   else
     warn "snmp: no hosts found"
   fi
   printf '%-22s : %s host(s)\n' "snmp read-only"  "$(wc -l < "$dir/affected-readonly.txt")"  >> "$SUMMARY"
   printf '%-22s : %s host(s)\n' "snmp read-write" "$(wc -l < "$dir/affected-readwrite.txt")" >> "$SUMMARY"
+  printf '%-22s : %s host(s)\n' "snmp cleartext"  "$(wc -l < "$dir/affected-cleartext.txt")" >> "$SUMMARY"
 fi
 
 # --------------------------------------------------------------------------- #
