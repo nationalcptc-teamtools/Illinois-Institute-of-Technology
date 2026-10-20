@@ -5,8 +5,8 @@
 # Parses Nmap TCP port scans, TCP service scans and UDP port scans, builds
 # per-service / per-port host lists, then runs Metasploit login scanners,
 # oscanner, nmap ftp-anon, snmp-brute + msf snmp_login, msf tftpbrute,
-# msf redis_server + nmap redis-info, nmap ssh2-enum-algos/sshv1, and
-# showmount -e for NFS.
+# msf redis_server + nmap redis-info, nmap ssh2-enum-algos/sshv1,
+# nmap smtp-open-relay, nmap vnc-info + msf vnc_login, and showmount -e for NFS.
 #
 # FTP and Telnet are additionally flagged as cleartext-auth protocols, but only
 # where the TCP service scan (-T) confirms the protocol by name - never on a
@@ -69,7 +69,7 @@ SSH_WEAK_MAC="${SSH_WEAK_MAC:-hmac-md5|hmac-sha1|-96|umac-64}"
 OUTDIR="."
 DRYRUN=0
 UDP_INCLUDE_FILTERED=0
-ALL_SERVICES="ssh,ftp,telnet,mysql,mssql,postgres,oracle,redis,nfs,snmp,tftp"
+ALL_SERVICES="ssh,ftp,telnet,mysql,mssql,postgres,oracle,redis,nfs,snmp,tftp,smtp,vnc"
 SELECTED="$ALL_SERVICES"
 
 declare -a TCP_PORTSCANS=() TCP_SVCSCANS=() UDP_SCANS=() SNMP_LISTS=() TFTP_LISTS=()
@@ -91,6 +91,10 @@ PHASE_SLOW_TCP=(telnet ssh)
 ORACLE_PORT=1521 ; ORACLE_RE='^(oracle-tns|oracle)$'
 REDIS_PORT=6379  ; REDIS_RE='^redis$'
 NFS_PORT=2049    ; NFS_RE='^nfs'
+SMTP_PORT=25     ; SMTP_RE='^smtp$'
+VNC_PORT=5900    ; VNC_RE='^vnc$'
+# VNC security types considered modern/strong - everything else is flagged.
+VNC_MODERN_RE="${VNC_MODERN_RE:-Tight|VeNCrypt|RA2}"
 
 # --------------------------------------------------------------------------- #
 # Helpers
@@ -180,8 +184,8 @@ Options:
   -h        Help
 
 Run order (fastest / most bounded first):
-  1 nfs -> 2 redis -> 3 snmp -> 4 tftp -> 5 oracle -> 6 ssh-crypto
-  7 ftp -> 8 mysql -> 9 mssql -> 10 postgres -> 11 telnet -> 12 ssh
+  1 nfs -> 2 redis -> 3 snmp -> 4 tftp -> 5 oracle -> 6 ssh-crypto -> 7 smtp -> 8 vnc
+  9 ftp -> 10 mysql -> 11 mssql -> 12 postgres -> 13 telnet -> 14 ssh
 
 Env overrides: SECLISTS_DIR THREADS CONNECT_TIMEOUT NMAP_HOST_TIMEOUT
                MSF_TIMEOUT MSF_TIMEOUT_SSH MSF_TIMEOUT_TELNET (per-service caps)
@@ -578,6 +582,32 @@ record_redis_creds() { # <spoolfile> <port>
   done < <(msf_success_lines "$f")
 }
 
+# VNC auth is password-only (no username). Prep a pure-password list from the
+# SecLists vnc-betterdefaultpasslist, stripping any user: prefix if present.
+prep_vnc_passlist() { # <dir> -> echoes path
+  local dir="$1" src="$SECLISTS_DIR/vnc-betterdefaultpasslist.txt" dst="$dir/vnc-passwords.txt"
+  if [[ ! -r "$src" ]]; then
+    warn "vnc: missing $src - skipping vnc_login"
+    return 1
+  fi
+  sed -E 's/^[^:]*://' "$src" | grep -v '^[[:space:]]*$' | sort -u > "$dst"
+  log "vnc: password list from $src ($(wc -l < "$dst") entries)"
+  printf '%s\n' "$dst"
+}
+
+# vnc_login prints a bare password, not user:pass - parse it separately.
+record_vnc_creds() { # <spoolfile> <port>
+  local f="$1" port="$2" line ip cred
+  [[ -r "$f" ]] || return 0
+  while IFS= read -r line; do
+    ip="$(sed -nE 's/^\[\+\][[:space:]]*([0-9.]+):.*/\1/p' <<<"$line")"
+    [[ -n "$ip" ]] || continue
+    cred="$(sed -E 's/^.*[Ss]uccess(ful)?:[[:space:]]*//' <<<"$line")"
+    cred="${cred#\'}"; cred="${cred%%\'*}"; cred="${cred#:}"
+    add_finding "$ip" "$port" "vnc" "weak/default VNC password" "" "$cred" "" "${f#$OUTDIR/}"
+  done < <(msf_success_lines "$f")
+}
+
 # Does an NFS export's client list allow anyone to mount?
 # Input: the client field of a showmount -e line (may be comma/space separated).
 # Public markers: bare '*', 'everyone', '(everyone)', 'all', 0.0.0.0/0, ::/0,
@@ -790,7 +820,7 @@ run_tcp_creds() {
 #   nmap NSE scans are bounded by --host-timeout; showmount and the
 #   redis/snmp probes are one or a few connects per host.
 # --------------------------------------------------------------------------- #
-phase "PHASE 1: nfs / redis / snmp / tftp / oracle / ssh-crypto"
+phase "PHASE 1: nfs / redis / snmp / tftp / oracle / ssh-crypto / smtp / vnc"
 
 # --------------------------------------------------------------------------- #
 # NFS (showmount -e)
@@ -1124,6 +1154,101 @@ fi
 # SSH weak crypto + SSHv1 (cheap NSE, no credential guessing)
 # --------------------------------------------------------------------------- #
 want ssh && ssh_crypto_audit
+
+# --------------------------------------------------------------------------- #
+# SMTP (open relay)
+# --------------------------------------------------------------------------- #
+if want smtp; then
+  dir="$OUTDIR/smtp"; mkdir -p "$dir"; : > "$dir/affected-openrelay.txt"
+  if build_hostlists "smtp" "$SMTP_PORT" "$SMTP_RE" "$dir"; then
+    for hf in "$dir"/smtp-*.txt; do
+      base="$(basename "$hf")"
+      [[ "$base" =~ ^smtp-([0-9]+)\.txt$ ]] || continue
+      port="${BASH_REMATCH[1]}"
+      # NOTE: smtp-open-relay actually attempts to relay mail through the target.
+      nmap_run "$dir" -Pn "${NMAP_TO[@]}" $NMAP_EXTRA -p "$port" --script smtp-open-relay \
+               -iL "$base" -oA "smtp-open-relay-$port"
+      if [[ $DRYRUN -eq 0 ]]; then
+        nmap_script_hits "$dir/smtp-open-relay-$port.nmap" "is an open relay" \
+          | dedupe_hosts >> "$dir/affected-openrelay.txt"
+        while read -r ip; do
+          [[ -n "$ip" ]] && add_finding "$ip" "$port" "smtp" "open mail relay" \
+            "" "" "" "smtp/smtp-open-relay-$port.nmap"
+        done < <(nmap_script_hits "$dir/smtp-open-relay-$port.nmap" "is an open relay" | dedupe_hosts)
+      fi
+    done
+    dedupe_file "$dir/affected-openrelay.txt"
+  else
+    warn "smtp: no hosts found"
+  fi
+  printf '%-22s : %s host(s)\n' "smtp open-relay" "$(wc -l < "$dir/affected-openrelay.txt")" >> "$SUMMARY"
+fi
+
+# --------------------------------------------------------------------------- #
+# VNC (insecure security types + weak/missing password)
+# --------------------------------------------------------------------------- #
+if want vnc; then
+  dir="$OUTDIR/vnc"; mkdir -p "$dir"
+  : > "$dir/affected-noauth.txt"; : > "$dir/affected-weaksectype.txt"; : > "$dir/affected-defaultpass.txt"
+  if build_hostlists "vnc" "$VNC_PORT" "$VNC_RE" "$dir"; then
+    pw="$(prep_vnc_passlist "$dir")" || pw=""; pw_base="$(basename "${pw:-}")"
+    for hf in "$dir"/vnc-*.txt; do
+      base="$(basename "$hf")"
+      [[ "$base" =~ ^vnc-([0-9]+)\.txt$ ]] || continue
+      port="${BASH_REMATCH[1]}"
+
+      # 1) security types via nmap vnc-info; flag None (no auth) and any type
+      #    that is not modern (not Tight / VeNCrypt / RA2).
+      nmap_run "$dir" -Pn "${NMAP_TO[@]}" $NMAP_EXTRA -p "$port" --script vnc-info \
+               -iL "$base" -oA "vnc-info-$port"
+      if [[ $DRYRUN -eq 0 && -r "$dir/vnc-info-$port.nmap" ]]; then
+        while IFS=$'\t' read -r ip st; do
+          [[ -n "$ip" ]] || continue
+          num="$(sed -nE 's/.*\(([0-9]+)\)[[:space:]]*$/\1/p' <<<"$st")"
+          name="$(sed -E 's/[[:space:]]*\([0-9]+\)[[:space:]]*$//' <<<"$st")"
+          if [[ "$num" == "1" || "$name" =~ [Nn]one ]]; then
+            echo "$ip" >> "$dir/affected-noauth.txt"
+            add_finding "$ip" "$port" "vnc" "VNC no authentication (security type None)" \
+                        "" "" "" "vnc/vnc-info-$port.nmap"
+          elif [[ "$name" =~ ($VNC_MODERN_RE) ]]; then
+            : # modern security type - not flagged
+          else
+            echo "$ip" >> "$dir/affected-weaksectype.txt"
+            add_finding "$ip" "$port" "vnc" "insecure VNC security type: $name ($num)" \
+                        "" "" "" "vnc/vnc-info-$port.nmap"
+          fi
+        done < <(awk '
+          /^Nmap scan report for/ { ip=$NF; gsub(/[()]/, "", ip); insec=0 }
+          /^\|/ {
+            l=$0; sub(/^[[:space:]]*\|_?[[:space:]]*/, "", l)
+            if (l ~ /^Security types:/) { insec=1; next }
+            if (insec) { if (l ~ /\([0-9]+\)[[:space:]]*$/) print ip"\t"l; else insec=0 }
+            next
+          }
+          { insec=0 }
+        ' "$dir/vnc-info-$port.nmap")
+      fi
+
+      # 2) weak / missing password via msf vnc_login (BLANK_PASSWORDS catches
+      #    hosts with no password set)
+      if [[ -n "$pw_base" ]]; then
+        cmd="use auxiliary/scanner/vnc/vnc_login ; set RHOSTS file:${base} ; set RPORT ${port} ; set PASS_FILE ${pw_base} ; set BLANK_PASSWORDS true ; set THREADS ${THREADS} ; set ConnectTimeout ${CONNECT_TIMEOUT} ; $(msf_brute_opts)spool vnc-${port}-defaultpass.txt ; run ; exit -y"
+        [[ $DRYRUN -eq 0 ]] && log "vnc: msf vnc_login on port $port"
+        msf_run "$dir" "vnc-${port}-login-console.log" "$cmd"
+        msf_hits "$dir/vnc-${port}-defaultpass.txt" >> "$dir/affected-defaultpass.txt"
+        record_vnc_creds "$dir/vnc-${port}-defaultpass.txt" "$port"
+      fi
+    done
+    dedupe_file "$dir/affected-noauth.txt"
+    dedupe_file "$dir/affected-weaksectype.txt"
+    dedupe_file "$dir/affected-defaultpass.txt"
+  else
+    warn "vnc: no hosts found"
+  fi
+  printf '%-22s : %s host(s)\n' "vnc no-auth"      "$(wc -l < "$dir/affected-noauth.txt")"      >> "$SUMMARY"
+  printf '%-22s : %s host(s)\n' "vnc weak-sectype" "$(wc -l < "$dir/affected-weaksectype.txt")" >> "$SUMMARY"
+  printf '%-22s : %s host(s)\n' "vnc defaultpass"  "$(wc -l < "$dir/affected-defaultpass.txt")" >> "$SUMMARY"
+fi
 
 
 # --------------------------------------------------------------------------- #
